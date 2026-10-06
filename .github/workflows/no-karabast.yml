@@ -1,0 +1,15 @@
+# The play site must not mention Karabast (their condition for the fork); see scripts/check-no-karabast.sh.
+name: No mention of Karabast
+
+on:
+  push:
+    branches: [swupedia]
+  pull_request:
+    branches: [swupedia]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-no-karabast.sh
