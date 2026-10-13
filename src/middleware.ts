@@ -11,10 +11,12 @@ export function middleware(request: NextRequest) {
     if (PAGES.has(pathname)) {
         return NextResponse.next();
     }
-    if (process.env.NODE_ENV === 'development') {
-        return pathname === '/' ? NextResponse.next() : NextResponse.redirect(new URL('/', request.url));
+    // In development / is the dev launcher, which is where exitUrl() points, so let it through.
+    if (process.env.NODE_ENV === 'development' && pathname === '/') {
+        return NextResponse.next();
     }
-    return NextResponse.redirect(exitUrl());
+    // new URL handles both the relative dev exit and the absolute production one.
+    return NextResponse.redirect(new URL(exitUrl(), request.url));
 }
 
 export const config = {
