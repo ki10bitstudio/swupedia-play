@@ -15,7 +15,6 @@ import { useSearchParams } from 'next/navigation';
 import { usePopup } from './Popup.context';
 import { PopupSource } from '@/app/_components/_sharedcomponents/Popup/Popup.types';
 import { ZoneName } from '../_constants/constants';
-import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useDistributionPrompt, IDistributionPromptData } from '@/app/_hooks/useDistributionPrompt';
 import { useSoundHandler } from '@/app/_hooks/useSoundHandler';
@@ -24,6 +23,7 @@ import { hasSelectedCards } from '../_utils/gameStateHelpers';
 import { useGameMessages, IMessageDelta, IMessageRetransmit } from '@/app/_hooks/useGameMessages';
 import { IChatEntry } from '@/app/_components/_sharedcomponents/Chat/ChatTypes';
 import { IOngoingEffectSummary } from '@/app/_components/_sharedcomponents/Cards/CardTypes';
+import { goToExit } from '@/app/_utils/siteUrls';
 
 interface IGameContextType {
     gameState: any;
@@ -72,7 +72,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const { user, anonymousUserId } = useUser();
     const [isSpectator, setIsSpectator] = useState<boolean>(false);
     const searchParams = useSearchParams();
-    const router = useRouter();
     const { distributionPromptData, setDistributionPrompt, clearDistributionPrompt, initDistributionPrompt } = useDistributionPrompt();
     const { data: session, status } = useSession();
     const { messages: gameMessages, processMessageDeltas, processMessageRetransmit, resetMessages } = useGameMessages();
@@ -295,7 +294,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         newSocket.on('connection_error', (error: any) => {
             console.error('Error joining lobby:', error);
             alert(error);
-            router.push('/');
+            goToExit();
         });
 
         newSocket.on('matchmakingFailed', (error: any) => {
