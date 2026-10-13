@@ -1,7 +1,6 @@
 import { useGame } from '@/app/_contexts/Game.context';
 import { usePopup } from '@/app/_contexts/Popup.context';
 import { Box, Typography } from '@mui/material';
-import { useRouter } from 'next/navigation';
 import {
     containerStyle,
     footerStyle,
@@ -11,6 +10,7 @@ import {
 } from '../Popup.styles';
 import PreferenceButton from '@/app/_components/_sharedcomponents/Preferences/_subComponents/PreferenceButton';
 import { GamesToWinMode } from '@/app/_constants/constants';
+import { goToExit } from '@/app/_utils/siteUrls';
 
 interface LeaveGamePopupProps {
     uuid: string;
@@ -19,7 +19,6 @@ interface LeaveGamePopupProps {
 export const LeaveGamePopupModule = ({ uuid }: LeaveGamePopupProps) => {
     const { sendMessage, gameState, lobbyState } = useGame();
     const { closePopup } = usePopup();
-    const router = useRouter();
     const hasWinner = !!gameState?.winners.length;
     
     // Check if we're in a Bo3 match
@@ -28,7 +27,7 @@ export const LeaveGamePopupModule = ({ uuid }: LeaveGamePopupProps) => {
     const handleConfirm = () => {
         sendMessage('manualDisconnect');
         closePopup(uuid);
-        router.push('/');
+        goToExit();
     };
 
     const handleCancel = () => {
@@ -38,7 +37,7 @@ export const LeaveGamePopupModule = ({ uuid }: LeaveGamePopupProps) => {
     // Determine the appropriate leave message
     const getLeaveMessage = () => {
         if (hasWinner) {
-            return 'Leave the game and return to homescreen?';
+            return 'Leave the game and return to SWUPedia?';
         }
         if (isBo3Mode) {
             return 'Leaving the game will concede the best-of-three set.';

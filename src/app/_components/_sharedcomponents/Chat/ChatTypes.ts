@@ -46,8 +46,5 @@ export interface IGameChat {
 
 export interface IChatProps {
     chatHistory: IChatEntry[];
-    chatMessage: string;
-    handleChatOnChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    handleChatSubmit: () => void;
     pauseAutoScroll?: boolean;
 }
