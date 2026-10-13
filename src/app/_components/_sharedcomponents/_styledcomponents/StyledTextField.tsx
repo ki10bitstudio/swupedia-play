@@ -1,6 +1,14 @@
 import React from 'react';
 import { TextField } from '@mui/material';
-import { IStyledTextFieldProps } from '@/app/_components/Auth/AuthTypes';
+
+export interface IStyledTextFieldProps {
+    variant?: 'outlined' | 'filled' | 'standard';
+    fullWidth?: boolean;
+    value?: string | null;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    errorMessage?: string;
+    [key: string]: unknown;
+}
 
 const StyledTextField: React.FC<IStyledTextFieldProps> = ({
     errorMessage,

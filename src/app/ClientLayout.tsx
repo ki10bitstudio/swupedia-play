@@ -10,11 +10,9 @@ const ClientProviders = dynamic(
     { ssr: false }
 );
 
-const Navbar = dynamic(() => import('./Navigation/NavBar'), { ssr: false });
-
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const path = usePathname();
-    const pagesWithWebsocket = ['/GameBoard', '/lobby', '/quickGame'];
+    const pagesWithWebsocket = ['/GameBoard', '/lobby'];
     const isPageWithWebsocket = pagesWithWebsocket.includes(path);
 
     return (
@@ -27,7 +25,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 </ClientProviders> 
             ) : (
                 <ClientProviders>
-                    <Navbar />
                     {children}
                 </ClientProviders>
             )}

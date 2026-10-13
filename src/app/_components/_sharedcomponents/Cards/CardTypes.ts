@@ -1,5 +1,3 @@
-import { DeckSource } from '@/app/_utils/fetchDeckData';
-
 export interface IOngoingEffectSourceSummary {
     setId: ICardSetId;
     type?: string;
@@ -175,83 +173,4 @@ interface ICardPlayer {
     name: string;
     label: string;
     uuid: string;
-}
-
-export interface IMatchTableStats {
-    leaderId: string,
-    leaderMelee?: string,
-    baseId: string,
-    baseMelee?: string,
-    wins: number,
-    losses: number,
-    winPercentage: number,
-    animationComplete?: boolean,
-}
-
-// Interface for opponent stats
-export interface IMatchupStatEntity {
-    leaderId: string;
-    leaderMelee?: string,
-    baseId: string;
-    baseMelee?: string,
-    wins: number;
-    losses: number;
-    draws: number;
-}
-
-// deckpage stats
-export interface IDeckPageStats {
-    totalGames: number;
-    wins: number;
-    losses: number;
-    draws: number;
-    winPercentage: number;
-}
-
-// stats interface
-export interface IDeckStats {
-    wins: number;
-    losses: number;
-    draws: number;
-    statsByMatchup?: IMatchupStatEntity[];
-}
-
-// DeckDetailedData
-export interface IDeckDetailedData {
-    id: string;
-    userId: string;
-    deck: {
-        leader: { id: string };
-        base: { id: string };
-        name: string;
-        favourite: boolean;
-        deckLink: string;
-        deckLinkID: string;
-        source?: string;
-    };
-    stats?: IDeckStats;
-}
-
-// Define interfaces for deck data
-export interface StoredDeck {
-    leader: { id: string };
-    base: { id: string };
-    name: string;
-    favourite: boolean;
-    deckLink: string;
-    deckID:string;
-    deckLinkID: string;
-    source: DeckSource;
-    stats?: IDeckStats;
-}
-
-export interface DisplayDeck {
-    deckID: string;
-    leader: { id: string, types:string[] };
-    base: { id: string, types:string[] };
-    metadata: { name: string };
-    favourite: boolean;
-    deckLink: string;
-    source: DeckSource;
-    stats?: IDeckStats;
 }

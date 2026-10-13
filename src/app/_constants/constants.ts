@@ -1,5 +1,3 @@
-import { supportedDeckHosts } from '../_utils/deckProviders/core/registry';
-
 export enum MatchmakingType {
     PublicLobby= 'publicLobby',
     PrivateLobby = 'privateLobby',
@@ -25,9 +23,6 @@ export enum CardPool {
  * See images-scripts/process_cards.py for the server-side upload story.
  */
 export const CARD_IMAGE_CACHE_VERSION = 4;
-
-/** Invite link to the Karabast Discord. */
-export const DiscordInviteUrl = 'https://discord.gg/hKRaqHND4v';
 
 export enum GamesToWinMode {
     BestOfOne = 'bestOfOne',
@@ -105,8 +100,6 @@ export const FormatTagLabels: Record<SwuGameFormat, string> = {
     [SwuGameFormat.Eternal]: 'Eternal',
     [SwuGameFormat.Limited]: 'Limited',
 };
-
-export const SupportedDeckSources: readonly string[] = supportedDeckHosts;
 
 export enum ZoneName {
     Base = 'base',
