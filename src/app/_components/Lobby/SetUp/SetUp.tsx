@@ -38,7 +38,7 @@ const SetUp: React.FC = ({
             mb: '1.0em',
             borderRadius: '0.4em',
             '&:hover': { opacity: '0.8' },
-            '&:focus-visible': { outline: '2px solid #4cc2ff', outlineOffset: '4px' },
+            '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '4px' },
         },
         mark: {
             height: '4.2em',

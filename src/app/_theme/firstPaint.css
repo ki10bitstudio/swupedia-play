@@ -7,6 +7,9 @@
     --swupedia-ground: #01070f;
     --swupedia-foreground: #e8f2fa;
     color-scheme: dark;
+    /* Aliases upstream's leftover var(--font-barlow) references (lobby and board components left
+       untouched to keep rebases cheap) to Geist, now that Barlow is gone. */
+    --font-barlow: var(--font-geist-sans);
 }
 
 html,

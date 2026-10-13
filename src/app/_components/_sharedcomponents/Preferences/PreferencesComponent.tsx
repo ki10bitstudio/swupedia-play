@@ -79,9 +79,9 @@ const PreferencesComponent: React.FC<IPreferenceProps> = ({
             pt: '0.75rem',
         },
         creditsLink:{
-            color: '#8aa2b8',
+            color: 'text.secondary',
             fontSize: '0.9rem',
-            '&:hover': { color: '#4cc2ff' },
+            '&:hover': { color: 'primary.main' },
         },
         titleContainer:{
             width:'6rem',
