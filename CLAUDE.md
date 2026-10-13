@@ -16,11 +16,14 @@ handoff").
 Two standing rules:
 
 - **No mention of Karabast** in `src/` or `public/` (their team's condition for the fork).
-  `bash scripts/check-no-karabast.sh` enforces it in CI; the only accepted hit is the card-image
-  host in `_utils/s3Utils.ts`, until it moves.
+  `bash scripts/check-no-karabast.sh` enforces it in CI. It allowlists exactly one line, the
+  card-image host in `_utils/s3Utils.ts`; the unit that moves the images removes that exception.
 - **The board stays upstream.** Karabast's fixes and new-card prompt handling land in the board, so
   board components change only where a requirement says so. That keeps upstream rebases cheap; an
   upstream edit to a file deleted here is a modify/delete conflict resolved by keeping the delete.
+  For the same reason some dead code for deleted features is kept on purpose, not overlooked:
+  `ServerApiService`'s cosmetics/mod/admin methods, `User.context`'s `isMod`/`userIsModAsync`, and
+  the `@aws-sdk/*` packages. Removing them would only add rebase conflicts.
 
 ## Commands
 
@@ -34,7 +37,9 @@ bash scripts/check-no-karabast.sh   # CI check, see above
 ```
 
 Node 22.x. There is **no test framework** in this repo — verification is `npm run lint`, `npm run build`,
-and manual play against a local bot server. CI runs lint, build and the no-Karabast check.
+and manual play against a local bot server. On the `swupedia` branch (pushes and PRs into it) CI runs
+lint and build (`.github/workflows/swupedia-checks.yml`) and the no-Karabast check (`no-karabast.yml`);
+upstream's `pullrequest.yml` only covers PRs into `main` and is left untouched.
 
 **Local play needs only this app plus the bot server** (`pnpm karabast` in `../swupedia-bot`), not
 the swupedia website: in development `/` is a dev launcher and every "back to swupedia" link goes

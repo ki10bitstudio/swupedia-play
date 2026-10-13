@@ -9,8 +9,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 matches=$(grep -rni --exclude-dir=node_modules karabast src public || true)
+
+# Accepted exception: the card-image host in the S3 URL builder. The unit that moves card images
+# to swupedia's own host removes this line, and with it the exception.
+matches=$(printf '%s\n' "$matches" | grep -vE "^src/app/_utils/s3Utils\.ts:[0-9]+:[[:space:]]*const s3Bucket = 'https://karabast-data\.s3\.amazonaws\.com/';$" || true)
 if [[ -z "$matches" ]]; then
-    echo "no mention of karabast in src/ or public/"
+    echo "no mention of karabast in src/ or public/ (besides the accepted card-image host)"
     exit 0
 fi
 

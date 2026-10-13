@@ -1,0 +1,36 @@
+# Lint and build for the swupedia branch. Upstream's pullrequest.yml only runs on PRs into main
+# and is left untouched so rebases stay clean.
+name: swupedia checks
+
+on:
+  push:
+    branches: [swupedia]
+  pull_request:
+    branches: [swupedia]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.x"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.x"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
