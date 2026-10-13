@@ -4,39 +4,77 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The web client for **Karabast**, a Star Wars: Unlimited game engine. It is a Next.js 14 App Router
-frontend that is nearly useless on its own: essentially all game logic, matchmaking, user records and
-deck storage live in the separate [forceteki](https://github.com/SWU-Karabast/forceteki) backend, which
-this client talks to over a socket.io websocket plus a REST API. `NEXT_PUBLIC_ROOT_URL` (default
-`http://localhost:9500`, see `.env.development`) points at that server.
+**swupedia-play**, the play client deployed at `play.swupedia.com`: a fork of Karabast's
+forceteki-client (a Star Wars: Unlimited web client, Next.js 14 App Router) cut down to **two screens,
+the lobby and the game board**, plus an entry route. Members start a game from swupedia.com's `/play`
+console and play against a bot run by a forceteki GameServer, which this client talks to over a
+socket.io websocket plus a REST API. `NEXT_PUBLIC_ROOT_URL` (default `http://localhost:9500`, see
+`.env.development`) points at that server. Essentially all game logic, matchmaking and user records
+live there. The design is `swupedia-ui/docs/plans/play-vs-bot.md` ("Play client" and "Seamless
+handoff").
+
+Two standing rules:
+
+- **No mention of Karabast** in `src/` or `public/` (their team's condition for the fork).
+  `bash scripts/check-no-karabast.sh` enforces it in CI; the only accepted hit is the card-image
+  host in `_utils/s3Utils.ts`, until it moves.
+- **The board stays upstream.** Karabast's fixes and new-card prompt handling land in the board, so
+  board components change only where a requirement says so. That keeps upstream rebases cheap; an
+  upstream edit to a file deleted here is a modify/delete conflict resolved by keeping the delete.
 
 ## Commands
 
 ```bash
-npm run dev          # dev server on :3000
+npm run dev          # dev server on :3000 (pass -- -p <port> for another)
 npm run lint         # tsc --noemit && next lint   <- what CI runs; run this before finishing
 npm run lint:fix     # same, with --fix
 npm run build        # next build (does NOT lint: eslint.ignoreDuringBuilds is true in next.config.mjs)
 npm run storybook    # component workbench on :6006
-docker compose up    # Adobe S3Mock on :9090, only needed for local cosmetics upload work
+bash scripts/check-no-karabast.sh   # CI check, see above
 ```
 
 Node 22.x. There is **no test framework** in this repo — verification is `npm run lint`, `npm run build`,
-and manual play against a local backend. CI (`.github/workflows/pullrequest.yml`) runs lint and build only.
+and manual play against a local bot server. CI runs lint, build and the no-Karabast check.
+
+**Local play needs only this app plus the bot server** (`pnpm karabast` in `../swupedia-bot`), not
+the swupedia website: in development `/` is a dev launcher and every "back to swupedia" link goes
+there (see below).
 
 ## Architecture
 
+### Routes and the way out
+
+Only three pages exist: `/`, `/lobby` and `/GameBoard`. `src/middleware.ts` answers every other path
+with a 307 to `exitUrl()`, so there is no dead-end or default 404 page (`not-found.tsx` redirects too).
+
+- `_utils/siteUrls.ts` holds the one rule for leaving the site. `exitUrl()` is swupedia.com's
+  `{NEXT_PUBLIC_SWUPEDIA_URL}/play` in production and the dev launcher `/` in development;
+  `goToExit()` navigates there. The lobby's swupedia mark, the end-of-game "Play again", leaving a
+  game and socket connection errors all use it. `swupediaUrl(path)` builds other swupedia.com links
+  (the settings overlay's Credits link uses it in development too). `NEXT_PUBLIC_SWUPEDIA_URL`
+  defaults to `https://swupedia.com`.
+- `/` in production is a 307 to swupedia.com/play (middleware; `page.tsx` redirects as a fallback).
+  The play ticket, a later unit, will be read here: it arrives in the URL fragment, which never
+  reaches the server, so that unit has to stop the middleware redirecting `/`.
+- `/` in development renders `_dev/DevLauncher.tsx`, the stand-in for the ticket: paste a swudb JSON
+  deck, pick a format and a lobby name (a roster label such as "vs greedy-v3-medium" picks the bot's
+  agent), and it POSTs a private lobby to `/api/create-lobby` as the anonymous user, then opens
+  `/lobby`. `page.tsx` imports it inside a `NODE_ENV === 'development'` branch so the production build
+  drops it; keep it that way (after `npm run build`, grep `.next/static` for "swupedia-dev-launcher").
+
 ### Provider stack and the websocket boundary
 
-`src/app/layout.tsx` → `ClientLayout.tsx` decides the shape of the tree by pathname:
+`src/app/layout.tsx` is a server component: it renders `<html class="dark">`, the fonts,
+`_theme/firstPaint.css` (Ground background, Foreground text) and the title template, so the first
+paint matches swupedia.com before any client JS. It then hands off to `ClientLayout.tsx`:
 
-- `/GameBoard`, `/lobby`, `/quickGame` get `ClientProviders` **+ `GameProvider`** and **no navbar**.
-- Everything else gets `ClientProviders` + navbar, and therefore has no socket.
+- `/GameBoard` and `/lobby` get `ClientProviders` **+ `GameProvider`**.
+- `/` gets `ClientProviders` only, and therefore has no socket.
 
-`ClientProviders` is `dynamic(..., { ssr: false })`, so effectively the whole app is client-rendered;
-nearly every component carries `'use client'`. Nesting order (outermost first): `SessionProvider` →
-`ServerSettings` → `User` → `CardImageLocale` → `TimerVisibility` → `Popup` → `OngoingEffectHighlight` →
-`Cosmetics` → `Theme`.
+`ClientProviders` is `dynamic(..., { ssr: false })`, so everything below the layout is
+client-rendered; nearly every component carries `'use client'`. Nesting order (outermost first):
+`SessionProvider` → `ServerSettings` → `User` → `CardImageLocale` → `TimerVisibility` → `Popup` →
+`OngoingEffectHighlight` → `Cosmetics` → `Theme`.
 
 ### Game.context.tsx is the hub
 
@@ -50,16 +88,24 @@ Three outbound channels:
   usually not hardcoded; the server sends `promptState.buttons` with `{ command, arg, uuid }` and the UI
   echoes them back.
 - `sendLobbyMessage([command, ...args])` → `socket.emit('lobby', ...)` — `setReadyStatus`, `updateDeck`,
-  `startGameAsync`, `rematch`, `sendChatMessage`, `submitReport`, `updateSetting`, …
-- `sendMessage(event, args)` — raw emit.
+  `startGameAsync`, `updateSetting`, `proceedToNextBo3Game`, `concedeBo3`, …
+- `sendMessage(event, args)` — raw emit (`manualDisconnect` when leaving).
 
 Inbound: `gamestate`, `lobbystate`, `queueHeartbeat`, `retransmitResponse`, `bugReportResult`,
 `playerReportResult`, `statsSubmitNotification`, `requestScreenResolution`, `connection_error`,
-`matchmakingFailed`, `inactiveDisconnect`.
+`matchmakingFailed`, `inactiveDisconnect` (some are upstream features this site no longer surfaces).
 
 `gameState` / `lobbyState` are intentionally typed `any` (the file disables `no-explicit-any`) — they are
-whatever the backend sends. Chat is delta-encoded: `useGameMessages` detects gaps and asks for a
-`retransmitGameMessages` range.
+whatever the backend sends. The game log (`gameMessages`, shown in the board's chat drawer) is
+delta-encoded: `useGameMessages` detects gaps and asks for a `retransmitGameMessages` range. There is no
+player-to-player chat: the drawer shows the log and the menu with Concede.
+
+### Lobby
+
+The lobby is kept for sideboarding: the deck and sideboard panel (`Lobby/Deck`, clicking a card sends
+`updateDeck`), Ready/Start, the Bo3 score card and its popups. The deck always arrives with the lobby,
+so there is no deck selection or import, invite link, chat or spectating. The swupedia mark
+(`src/assets/swupedia-mark.svg`) in `Lobby/SetUp` is the way out.
 
 ### Popups are driven by game state, not by clicks
 
@@ -69,34 +115,21 @@ and `prunePromptStatePopups(promptUuid)` drops stale server-sourced popups while
 `PopupSource.User` ones alone. Add a popup kind by extending the union in `Popup.types.ts` and adding a
 variant component under `Popup/PopupVariant/`.
 
-### Deck providers
-
-`src/app/_utils/deckProviders/` imports decklists from ~16 third-party deckbuilder sites. Each is a
-`DeckProviderBase` subclass declaring host match, API URL, tag color, and error overrides; the base class
-handles fetching and error mapping. **Adding a provider = one subclass + one entry in
-`core/registry.ts`** — `determineDeckSource`, `supportedDeckHosts`, the public supported-sites list, and
-DeckPage tag styling all derive from that array. Order matters (first `matches` wins). Errors are always
-`DeckFetchError` with a `reason` callers switch on.
-
-In dev, `src/app/api/deck-proxy/route.ts` forwards these requests server-side because provider CORS
-allowlists only accept `https://karabast.net`. It deliberately re-checks CORS as prod would, so a
-genuinely broken provider still fails locally.
-
 ### Card images
 
 All card art is on S3 under `cards/{SET}/{locale}/{format}/{size}/`. Build URLs with
 `s3CardImageURL()` / `s3ImageURL()` from `_utils/s3Utils.ts` — never hand-assemble one. Bump
 `CARD_IMAGE_CACHE_VERSION` in `_constants/constants.ts` to bust browser caches. `images-scripts/process_cards.py`
-is the Python pipeline that produces and uploads them (see its README).
+is the Python pipeline that produces and uploads them (see its README). The bucket is still upstream's;
+moving it is a later unit.
 
-### Auth and roles
+### Auth
 
-NextAuth (Google + Discord) with a custom JWT encode/decode in `_utils/auth.ts`, so the same token can be
-handed to the backend as `auth: { token }` on the socket. Anonymous play is first-class: `User.context`
-mints a uuid into `localStorage.anonymousUserId` when there is no session, and deck storage forks on this
-(`ServerAndLocalStorageUtils.ts`: server for logged-in users, localStorage for anonymous). Admin API routes
-wrap handlers in `withAdminAuth(role, handler)`, which delegates the role check to the backend and is a
-no-op in development.
+NextAuth (Google + Discord) with a custom JWT encode/decode in `_utils/auth.ts` is still wired
+(`api/auth/[...nextauth]`, `SessionProvider`) so the token plumbing keeps working, but there is no
+sign-in UI; a later unit replaces it with the play ticket. Anonymous play is the normal case:
+`User.context` mints a uuid into `localStorage.anonymousUserId` when there is no session. Preferences
+for anonymous players live in localStorage (`ServerAndLocalStorageUtils.ts`).
 
 ### Server settings / maintenance
 
@@ -107,14 +140,19 @@ flashes it. The client-side gate is presentation only — the server 503s anyway
 ## Conventions
 
 - **Directory naming**: `_`-prefixed dirs under `src/app` (`_components`, `_contexts`, `_hooks`,
-  `_utils`, `_services`, `_constants`, `_theme`, `_validators`) are App Router private folders — not routes.
-  Shared UI goes in `_components/_sharedcomponents/`, feature UI in `_components/<Feature>/_subcomponents/`.
+  `_utils`, `_services`, `_constants`, `_theme`, `_validators`, `_dev`) are App Router private folders —
+  not routes. Shared UI goes in `_components/_sharedcomponents/`, feature UI in
+  `_components/<Feature>/_subcomponents/`.
 - **Path alias**: `@/*` → `./src/*`.
 - **Styling**: MUI v7 with Emotion. The house pattern is a local `const styles = { ... }` object under a
   `// ----------------Styles----------------//` comment, spread into `sx`. No CSS modules, no Tailwind.
-  The theme (`_theme/theme.ts`) is dark-only and adds custom device breakpoints (`iphoneSE`, `ipadMini`,
-  `desktopHD`, `xxl`, …) and custom typography variants — extend it rather than hardcoding sizes.
-- **Types**: interfaces are `I`-prefixed (`IGameContextType`, `IDeckData`, `IBoardProps`). Component prop
+  The theme (`_theme/theme.ts`) is dark-only, carries swupedia.com's colour tokens (copied by hand from
+  the YAML front matter of swupedia-ui's `DESIGN.md`) and adds custom device breakpoints (`iphoneSE`,
+  `ipadMini`, `desktopHD`, `xxl`, …) and custom typography variants — extend it rather than hardcoding
+  sizes. Components that hardcode their own colours keep upstream's.
+- **Type**: Geist (`--font-geist-sans`), Geist Mono (`--font-geist-mono`) and Inter (`--font-rules`),
+  self-hosted via `_theme/fonts.ts`, the same variable names swupedia-ui uses.
+- **Types**: interfaces are `I`-prefixed (`IGameContextType`, `IBoardProps`). Component prop
   types live in a sibling `*Types.ts` / `*.types.ts` file.
 - **Lint style is enforced, not advisory** (`@stylistic`): 4-space indent, single quotes, no padded blocks,
   `{ spaced: true }` object curlies, blank line before block comments. `npm run lint` gates PRs.
