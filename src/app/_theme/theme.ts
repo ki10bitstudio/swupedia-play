@@ -1,14 +1,30 @@
 import { Theme, createTheme } from '@mui/material/styles';
 
+// swupedia.com's tokens (DESIGN.md front matter in swupedia-ui), copied by hand. A token that
+// changes there is changed here too.
+const swupedia = {
+    beam: '#4cc2ff',
+    ground: '#01070f',
+    surface: '#141210',
+    raised: '#25221d',
+    hairline: '#2e2a24',
+    foreground: '#e8f2fa',
+    mutedForeground: '#8aa2b8',
+};
+
 export const theme: Theme = createTheme({
     palette: {
-        background: {
-            default: '#000000',
+        primary: {
+            main: swupedia.beam,
         },
-        divider: '#353739', // Added this line to set the divider color
+        background: {
+            default: swupedia.ground,
+            paper: swupedia.surface,
+        },
+        divider: swupedia.hairline,
         text: {
-            primary: '#fff',
-            secondary: '#fff'
+            primary: swupedia.foreground,
+            secondary: swupedia.mutedForeground,
         }
     },
     breakpoints: {
@@ -30,9 +46,9 @@ export const theme: Theme = createTheme({
         },
     },
     typography: {
-        fontFamily: 'var(--font-barlow), Arial, sans-serif',
+        fontFamily: 'var(--font-geist-sans), Arial, sans-serif',
         allVariants: {
-            color: 'white',
+            color: swupedia.foreground,
             WebkitFontSmoothing: 'auto',
         },
         h1: {
@@ -69,8 +85,8 @@ export const theme: Theme = createTheme({
             fontWeight: 600,
             lineHeight: '130%',
             marginBottom: '1rem',
-            color: 'white',
-            fontFamily: 'var(--font-barlow), Arial, sans-serif',
+            color: swupedia.foreground,
+            fontFamily: 'var(--font-geist-sans), Arial, sans-serif',
         },
         body2: {
             fontSize: '0.75rem',
@@ -114,8 +130,8 @@ export const theme: Theme = createTheme({
                     },
                 },
                 body: {
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
+                    backgroundColor: swupedia.ground,
+                    color: swupedia.foreground,
                     maxWidth: '100%',
                     height: '100%',
                     margin: '0',
@@ -129,7 +145,7 @@ export const theme: Theme = createTheme({
                     height: '2px',
                 },
                 '::-webkit-scrollbar-thumb': {
-                    backgroundColor: '#D3D3D3B3',
+                    backgroundColor: `${swupedia.mutedForeground}B3`,
                     borderRadius: '2px',
                 },
                 '::-webkit-scrollbar-button': {
@@ -160,7 +176,7 @@ export const theme: Theme = createTheme({
                 {
                     props: { variant: 'blue' },
                     style: {
-                        backgroundColor: '#18325199',
+                        backgroundColor: `${swupedia.surface}99`,
                         padding: '1.5rem',
                         backdropFilter: 'blur(20px)',
                     },
@@ -168,7 +184,7 @@ export const theme: Theme = createTheme({
                 {
                     props: { variant: 'black' },
                     style: {
-                        backgroundColor: 'rgb(0, 0, 0, 0.60)',
+                        backgroundColor: `${swupedia.ground}99`,
                         padding: '1.5rem',
                         backdropFilter: 'blur(20px)',
                     },
@@ -195,17 +211,17 @@ export const theme: Theme = createTheme({
         MuiButton: {
             styleOverrides: {
                 root: {
-                    backgroundColor: '#292929',
-                    color: 'white',
+                    backgroundColor: swupedia.raised,
+                    color: swupedia.foreground,
                     fontWeight: '600',
                     fontSize: '1rem',
                     textTransform: 'none',
                     '&:hover': {
-                        backgroundColor: '#404040',
+                        backgroundColor: swupedia.hairline,
                     },
 
                     '&:disabled': {
-                        color: '#444'
+                        color: `${swupedia.mutedForeground}80`
                     },
                 },
             },
@@ -216,17 +232,17 @@ export const theme: Theme = createTheme({
             },
             styleOverrides: {
                 select: {
-                    backgroundColor: '#394452',
-                    color: 'white',
+                    backgroundColor: swupedia.surface,
+                    color: swupedia.foreground,
                     '&:hover': {
-                        backgroundColor: '#4C5C71',
+                        backgroundColor: swupedia.raised,
                     },
                     '&:focus': {
                         borderRadius: '5px',
                     },
                 },
                 icon: {
-                    color: 'white',
+                    color: swupedia.foreground,
                 },
             },
         },
@@ -239,21 +255,21 @@ export const theme: Theme = createTheme({
             styleOverrides: {
                 root: {
                     borderRadius: '5px',
-                    backgroundColor: '#394452',
+                    backgroundColor: swupedia.surface,
                     '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'transparent',
+                        borderColor: swupedia.hairline,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'transparent',
+                        borderColor: swupedia.hairline,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#7286A0',
+                        borderColor: swupedia.beam,
                     },
                 },
                 input: {
-                    color: 'white',
+                    color: swupedia.foreground,
                     '&::placeholder': {
-                        color: 'white',
+                        color: swupedia.mutedForeground,
                     },
                 },
             },
@@ -261,7 +277,7 @@ export const theme: Theme = createTheme({
         MuiMenu: {
             styleOverrides: {
                 paper: {
-                    backgroundColor: '#394452',
+                    backgroundColor: swupedia.surface,
                     borderRadius: '5px',
                 },
             },
@@ -269,12 +285,12 @@ export const theme: Theme = createTheme({
         MuiMenuItem: {
             styleOverrides: {
                 root: {
-                    color: 'white',
+                    color: swupedia.foreground,
                     '&:hover': {
-                        backgroundColor: '#4C5C71',
+                        backgroundColor: swupedia.raised,
                     },
                     '&.Mui-selected, &.Mui-selected:hover, &.Mui-selected:focus': {
-                        backgroundColor: '#4C5C71',
+                        backgroundColor: swupedia.raised,
                     },
                     '&:first-of-type': {
                         borderTopLeftRadius: '5px',
@@ -293,11 +309,11 @@ export const theme: Theme = createTheme({
                     textAlign: 'center',
                 },
                 listbox: {
-                    backgroundColor: '#394452',
+                    backgroundColor: swupedia.surface,
                 },
                 option: {
                     '&:hover': {
-                        backgroundColor: '#4C5C71'
+                        backgroundColor: swupedia.raised
                     },
                 },
             }

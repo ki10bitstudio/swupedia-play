@@ -113,7 +113,14 @@ const DevLauncher: React.FC = () => {
             color: '#8aa2b8',
             mb: 0,
         },
+        field: {
+            '& .MuiInputLabel-root': { color: '#8aa2b8' },
+            '& .MuiInputLabel-root.Mui-focused': { color: '#4cc2ff' },
+            '& .MuiFormHelperText-root': { color: '#8aa2b8', mx: 0 },
+        },
         deckInput: {
+            '& .MuiInputLabel-root': { color: '#8aa2b8' },
+            '& .MuiInputLabel-root.Mui-focused': { color: '#4cc2ff' },
             '& textarea': {
                 fontFamily: 'var(--font-geist-mono), monospace',
                 fontSize: '0.8rem',
@@ -160,6 +167,7 @@ const DevLauncher: React.FC = () => {
                 <TextField
                     select
                     label="Format"
+                    sx={styles.field}
                     value={format}
                     onChange={(e) => setFormat(e.target.value as SwuGameFormat)}
                 >
@@ -170,6 +178,7 @@ const DevLauncher: React.FC = () => {
 
                 <TextField
                     label="Lobby name"
+                    sx={styles.field}
                     value={lobbyName}
                     onChange={(e) => setLobbyName(e.target.value)}
                     placeholder="vs greedy-v3-medium"

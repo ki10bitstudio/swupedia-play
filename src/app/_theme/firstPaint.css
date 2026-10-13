@@ -1,0 +1,22 @@
+/*
+ * swupedia.com's ground, foreground and type, applied by the server-rendered root layout so the
+ * first paint matches swupedia.com before any client JS (MUI's theme arrives with
+ * ClientProviders). Values copied from swupedia-ui's DESIGN.md front matter.
+ */
+:root {
+    --swupedia-ground: #01070f;
+    --swupedia-foreground: #e8f2fa;
+    color-scheme: dark;
+}
+
+html,
+body {
+    background-color: var(--swupedia-ground);
+    color: var(--swupedia-foreground);
+}
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-geist-sans), Arial, sans-serif;
+}
