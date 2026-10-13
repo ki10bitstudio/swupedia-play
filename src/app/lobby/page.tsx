@@ -7,7 +7,6 @@ import Deck from '../_components/Lobby/Deck/Deck';
 import SetUp from '../_components/Lobby/SetUp/SetUp';
 import LobbyConcededPopup from '../_components/Lobby/_subcomponents/LobbyConcededPopup/LobbyConcededPopup';
 import { useGame } from '@/app/_contexts/Game.context';
-import { s3ImageURL } from '@/app/_utils/s3Utils';
 import { Bo3SetEndedReason, GamesToWinMode, IBo3SetEndResult } from '@/app/_constants/constants';
 
 const Lobby = () => {
@@ -44,9 +43,7 @@ const Lobby = () => {
         containerStyle: {
             height: '100vh',
             overflow: 'hidden',
-            backgroundImage: `url(${s3ImageURL('ui/board-background-1.webp')})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            // No illustration: the lobby sits on the layout's plain Ground, like swupedia.com.
             width: '100%',
             padding: '1em',
         },
