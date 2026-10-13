@@ -2,7 +2,6 @@
 import React from 'react';
 import { Box, Modal, Typography } from '@mui/material';
 import PreferenceButton from '@/app/_components/_sharedcomponents/Preferences/_subComponents/PreferenceButton';
-import { DiscordChannelLink } from '@/app/_components/_sharedcomponents/Preferences/_subComponents/BugReportDialog';
 import { getReadableDeckErrors } from '@/app/_validators/DeckValidation/getReadableDeckErrors';
 import { IDeckValidationFailures } from '@/app/_validators/DeckValidation/DeckValidationTypes';
 import { IMatchConfiguration } from '@/app/_constants/constants';
@@ -72,7 +71,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
 
                 {footerLink && (
                     <Typography variant="body2" sx={{ color: 'white', mt: 1, textAlign: 'center' }}>
-                        <DiscordChannelLink>{footerLink.label}</DiscordChannelLink>
+                        {footerLink.label}
                     </Typography>
                 )}
 

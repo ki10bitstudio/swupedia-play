@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Link, Typography } from '@mui/material';
 import { CloseOutlined } from '@mui/icons-material';
 import VerticalTabs from '@/app/_components/_sharedcomponents/Preferences/_subComponents/VerticalTabs';
 import { IPreferenceProps } from '@/app/_components/_sharedcomponents/Preferences/Preferences.types';
+import { swupediaUrl } from '@/app/_utils/siteUrls';
 
 const PreferencesComponent: React.FC<IPreferenceProps> = ({
     isPreferenceOpen,
@@ -72,6 +73,16 @@ const PreferencesComponent: React.FC<IPreferenceProps> = ({
             minHeight: 0,
             background: 'transparent',
         },
+        footer:{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            pt: '0.75rem',
+        },
+        creditsLink:{
+            color: '#8aa2b8',
+            fontSize: '0.9rem',
+            '&:hover': { color: '#4cc2ff' },
+        },
         titleContainer:{
             width:'6rem',
             display: 'flex',
@@ -111,6 +122,17 @@ const PreferencesComponent: React.FC<IPreferenceProps> = ({
                     )}
                     <Box sx={styles.tabContainer}>
                         <VerticalTabs tabs={tabs} variant={variant} attemptingClose={attemptingClose} closeHandler={closePreferencesHandler} cancelCloseHandler={cancelClosePreferences} initialTab={initialTab} />
+                    </Box>
+                    <Box sx={styles.footer}>
+                        <Link
+                            href={swupediaUrl('/docs/credits')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            underline="hover"
+                            sx={styles.creditsLink}
+                        >
+                            Credits
+                        </Link>
                     </Box>
                 </Box>
             </Box>

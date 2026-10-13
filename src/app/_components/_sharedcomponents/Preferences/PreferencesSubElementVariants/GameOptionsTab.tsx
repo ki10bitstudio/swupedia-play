@@ -102,11 +102,6 @@ function GameOptionsTab({ variant, setHasNewChanges }: { variant?: 'gameBoard' |
         }
     }, [muteChatEnabled, originalMuteChat, cardLanguage, originalCardLanguage, timerVisibility, originalTimerVisibility, autoSingleTargetEnabled, originalAutoSingleTarget, setHasNewChanges]);
 
-    const handleMuteChatChange = (value: boolean) => {
-        setMuteChatEnabled(value);
-        setSaveStatus(SaveStatus.NoChange);
-    };
-
     const handleAutoSingleTargetChange = (value: boolean) => {
         setAutoSingleTargetEnabled(value);
         setSaveStatus(SaveStatus.NoChange);
@@ -278,28 +273,6 @@ function GameOptionsTab({ variant, setHasNewChanges }: { variant?: 'gameBoard' |
                     </Select>
                 </Box>
             </Box>
-
-            {variant !== 'gameBoard' && (
-                <Box sx={styles.functionContainer}>
-                    <Typography sx={styles.typographyContainer} variant={'h2'}>Chat</Typography>
-                    <Divider sx={{ mb: '20px' }} />
-                    <Box sx={{ mb: '10px' }}>
-                        <PreferenceOption
-                            option={'Mute Chat'}
-                            optionDescription={'Mute chat in all games.'}
-                            iconType="checkbox"
-                            onChange={handleMuteChatChange}
-                            defaultChecked={muteChatEnabled}
-                            disabled={!user}
-                        />
-                    </Box>
-                    {!user && (
-                        <Typography sx={{ ml: '1rem', color: '#888', fontSize: '0.85rem' }}>
-                            Log in to save game options.
-                        </Typography>
-                    )}
-                </Box>
-            )}
 
             {user && (
                 <Box sx={styles.functionContainer}>

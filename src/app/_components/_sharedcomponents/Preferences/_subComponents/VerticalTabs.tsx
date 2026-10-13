@@ -11,11 +11,7 @@ import KeyboardShortcutsTab
 import SoundOptionsTab from '@/app/_components/_sharedcomponents/Preferences/PreferencesSubElementVariants/SoundOptionsTab';
 import { IVerticalTabsProps } from '@/app/_components/_sharedcomponents/Preferences/Preferences.types';
 import EndGameTab from '@/app/_components/_sharedcomponents/Preferences/PreferencesSubElementVariants/EndGameTab';
-import BlockListTab from '@/app/_components/_sharedcomponents/Preferences/PreferencesSubElementVariants/BlockListTab';
-import { useUser } from '@/app/_contexts/User.context';
-import GeneralTab from '@/app/_components/_sharedcomponents/Preferences/PreferencesSubElementVariants/GeneralTab';
 import UnsavedChangesDialog from '@/app/_components/_sharedcomponents/Preferences/_subComponents/UnsavedChangesDialog';
-import CosmeticsTab from '../PreferencesSubElementVariants/CosmeticsTab';
 import GameOptionsTab from '../PreferencesSubElementVariants/GameOptionsTab';
 import { useMediaQuery } from '@mui/material';
 
@@ -31,12 +27,8 @@ enum TabType {
     CurrentGame = 'currentGame',
     KeyboardShortcuts = 'keyboardShortcuts',
     GameOptions = 'gameOptions',
-    Cosmetics = 'cosmetics',
     SoundOptions = 'soundOptions',
     EndGame = 'endGame',
-    BlockList = 'blockList',
-    General = 'general',
-    Logout = 'logout'
 }
 
 function VerticalTabs({
@@ -55,7 +47,6 @@ function VerticalTabs({
     const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
     const [pendingTabIndex, setPendingTabIndex] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const { logout } = useUser();
     const isSmallScreen = useMediaQuery('(max-width: 899px)');
 
     useEffect(() => {
@@ -120,16 +111,10 @@ function VerticalTabs({
                 return <KeyboardShortcutsTab/>;
             case TabType.GameOptions:
                 return <GameOptionsTab variant={variant} setHasNewChanges={setHasUnsavedChanges}/>;
-            case TabType.Cosmetics:
-                return <CosmeticsTab />;
             case TabType.SoundOptions:
                 return <SoundOptionsTab setHasNewChanges={setHasUnsavedChanges}/>;
             case TabType.EndGame:
                 return <EndGameTab/>;
-            case TabType.BlockList:
-                return <BlockListTab/>;
-            case TabType.General:
-                return <GeneralTab/>;
             default:
                 return <Typography>Not Implemented</Typography>;
         }
@@ -142,18 +127,10 @@ function VerticalTabs({
                 return 'Keyboard Shortcuts';
             case TabType.GameOptions:
                 return 'Game Options';
-            case TabType.Cosmetics:
-                return 'Cosmetics';
             case TabType.SoundOptions:
                 return 'Sound Options';
             case TabType.EndGame:
                 return 'Current Game';
-            case TabType.BlockList:
-                return 'Block List';
-            case TabType.Logout:
-                return 'Log Out'
-            case TabType.General:
-                return 'General';
             default:
                 return null;
         }
@@ -222,17 +199,6 @@ function VerticalTabs({
                 sx={styles.tabContainer}
             >
                 {tabs.map((tabName, idx) => {
-                    if (tabName === 'logout') {
-                        return (
-                            <Tab
-                                key={tabName}
-                                sx={styles.tab}
-                                label={renderLabels(tabName)}
-                                onClick={logout}
-                                {...tabProps(idx)}
-                            />
-                        );
-                    }
                     return (
                         <Tab
                             key={tabName}
@@ -245,9 +211,6 @@ function VerticalTabs({
             </Tabs>
             <Box sx={styles.tabPanelContainer}>
                 {tabs.map((tabName, idx) => {
-                    if (tabName === 'logout') {
-                        return null;
-                    }
                     return (
                         <Box
                             key={tabName}

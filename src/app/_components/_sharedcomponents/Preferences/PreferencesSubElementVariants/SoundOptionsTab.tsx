@@ -235,28 +235,6 @@ function SoundOptionsTab({ setHasNewChanges }: SoundOptionsTabProps) {
                         disabled={soundPreferences?.muteAllSound}
                     />
                 </Box>
-
-                <Box sx={styles.optionContainer}>
-                    <PreferenceOption
-                        option={'Chat'}
-                        optionDescription={'Sound for incoming chat messages.'}
-                        iconType="mute"
-                        onChange={(muted) => handlePreferenceChange('muteChatSound', muted)}
-                        defaultChecked={soundPreferences?.muteChatSound}
-                        disabled={soundPreferences?.muteAllSound}
-                    />
-                </Box>
-
-                <Box sx={styles.optionContainer}>
-                    <PreferenceOption
-                        option={'Opponent Found'}
-                        optionDescription={'Sound when an opponent is found.'}
-                        iconType="mute"
-                        onChange={(muted) => handlePreferenceChange('muteOpponentFoundSound', muted)}
-                        defaultChecked={soundPreferences?.muteOpponentFoundSound}
-                        disabled={soundPreferences?.muteAllSound}
-                    />
-                </Box>
             </Box>
 
             {/* Save Button and Status */}
