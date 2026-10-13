@@ -6,7 +6,7 @@ import { barlow, barlowSemiCondensed } from './_theme/fonts';
 import './_utils/s3Utils';
 
 export const metadata: Metadata = {
-    title: 'Karabast',
+    title: 'SWUPedia',
 };
 
 export const viewport: Viewport = {

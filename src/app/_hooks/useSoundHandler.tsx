@@ -43,7 +43,7 @@ export const useSoundHandler = (options: SoundHandlerOptions = {}) => {
      */
     const getVolumeFromLocalStorage = (): number => {
         try {
-            const storedVolume = localStorage.getItem('karabast_volume');
+            const storedVolume = localStorage.getItem('swupedia_volume');
             if (storedVolume !== null) {
                 const volume = parseFloat(storedVolume);
                 // Ensure it's a valid number between 0 and 1
@@ -65,7 +65,7 @@ export const useSoundHandler = (options: SoundHandlerOptions = {}) => {
         try {
             // Clamp volume between 0 and 1
             const clampedVolume = Math.max(0, Math.min(1, volume));
-            localStorage.setItem('karabast_volume', clampedVolume.toString());
+            localStorage.setItem('swupedia_volume', clampedVolume.toString());
         } catch (error) {
             console.warn('Error saving volume to localStorage:', error);
         }
@@ -74,8 +74,9 @@ export const useSoundHandler = (options: SoundHandlerOptions = {}) => {
 
     // Sound configuration mapping - just to the source files
     const soundConfigs = useMemo<Record<SoundAction, string | null>>(() => ({
-        foundOpponent: '/HelloThere.mp3',
-        incomingMessage: '/chatbeep.mp3',
+        // Upstream's opponent-found and chat sounds are not shipped on this site: silent.
+        foundOpponent: null,
+        incomingMessage: null,
         chat: null,
         statefulPromptResults: '/click1.mp3',
         cardClicked: '/click1.mp3',

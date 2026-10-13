@@ -54,7 +54,7 @@ export interface IStatsNotification {
     id: string;
     success: boolean;
     type: StatsSaveStatus;
-    source: StatsSource;
+    source: string;
     message: string;
 }
 
@@ -88,12 +88,6 @@ export enum StatsSaveStatus {
     Warning = 'Warning',
     Error = 'Error',
     Success = 'Success'
-}
-
-export enum StatsSource {
-    Karabast = 'Karabast',
-    SwuStats = 'SWUStats',
-    SwuBase = 'SWUBase'
 }
 
 export enum PlayerReportType {

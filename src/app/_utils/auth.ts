@@ -27,7 +27,6 @@ export const authOptions: AuthOptions = {
         sessionToken: {
             name: 'next-auth.session-token',
             options: {
-                ...(process.env.NODE_ENV === 'development' ? {} : { domain: '.karabast.net' }),
                 httpOnly: true,
                 sameSite: 'lax',
                 path: '/',
@@ -37,7 +36,6 @@ export const authOptions: AuthOptions = {
         callbackUrl: {
             name: 'next-auth.callback-url',
             options: {
-                ...(process.env.NODE_ENV === 'development' ? {} : { domain: '.karabast.net' }),
                 httpOnly: true,
                 sameSite: 'lax',
                 path: '/',
@@ -47,7 +45,6 @@ export const authOptions: AuthOptions = {
         csrfToken: {
             name: 'next-auth.csrf-token',
             options: {
-                ...(process.env.NODE_ENV === 'development' ? {} : { domain: '.karabast.net' }),
                 httpOnly: true,
                 sameSite: 'lax',
                 path: '/',

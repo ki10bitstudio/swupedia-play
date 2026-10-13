@@ -1,7 +1,6 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import ConfirmationDialog from '@/app/_components/_sharedcomponents/DeckPage/ConfirmationDialog';
-import { DiscordChannelLink } from '@/app/_components/_sharedcomponents/Preferences/_subComponents/BugReportDialog';
 
 interface CardLanguageNoticeDialogProps {
     open: boolean;
@@ -27,12 +26,8 @@ const CardLanguageNoticeDialog: React.FC<CardLanguageNoticeDialogProps> = ({
                 <Box sx={{ fontWeight: 'bold', fontSize: '1.1rem', mb: '0.25rem', color: 'white' }}>
                     Details
                 </Box>
-                <Box component="p" sx={{ mt: 0, mb: '1rem' }}>
-                    Our English images come from swudb.com, which typically updates day-of with new previews. Other card languages come from the FFG card database, which is updated at a slower rate and often does not show new cards for days or weeks after they are spoiled.
-                </Box>
                 <Box component="p" sx={{ mt: 0, mb: 0 }}>
-                    If you notice card previews appearing in English for an extended period of time or for cards not in a preview set, please contact us via our{' '}
-                    <DiscordChannelLink>Discord channel</DiscordChannelLink>.
+                    Our English images come from swudb.com, which typically updates day-of with new previews. Other card languages come from the FFG card database, which is updated at a slower rate and often does not show new cards for days or weeks after they are spoiled.
                 </Box>
             </>
         }

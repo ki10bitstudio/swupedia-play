@@ -22,7 +22,7 @@ const POLL_INTERVAL_MS = 20000;
  */
 const FAILURES_BEFORE_DISABLING = 2;
 
-export const DEFAULT_MAINTENANCE_MESSAGE = 'Karabast is currently under maintenance. Be back soon!';
+export const DEFAULT_MAINTENANCE_MESSAGE = 'The game server is currently under maintenance. Be back soon!';
 
 interface IServerSettingsContext {
 
