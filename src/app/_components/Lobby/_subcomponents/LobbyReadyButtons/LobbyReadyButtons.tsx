@@ -87,7 +87,7 @@ function LobbyReadyButtons({ readyStatus, isOwner, blockError = false, hasDeck =
 
     // If user doesn't have a deck, show message
     if (!hasDeck) {
-        return <Typography>Please import a deck</Typography>;
+        return <Typography>Waiting for your deck</Typography>;
     }
 
     // Bo3 after first game: both ready means game auto-starts
