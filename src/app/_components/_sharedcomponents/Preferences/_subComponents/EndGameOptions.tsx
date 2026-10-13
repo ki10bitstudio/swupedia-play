@@ -2,45 +2,20 @@ import * as React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { Divider } from '@mui/material';
-import MuiLink from '@mui/material/Link';
 import PreferenceButton from '@/app/_components/_sharedcomponents/Preferences/_subComponents/PreferenceButton';
 import Bo3ScoreDisplay from '@/app/_components/_sharedcomponents/Preferences/_subComponents/Bo3ScoreDisplay';
-import { useRouter } from 'next/navigation';
 import { useGame } from '@/app/_contexts/Game.context';
-import { useUser } from '@/app/_contexts/User.context';
 import { useEffect, useState } from 'react';
-import { StatsSource } from '@/app/_components/_sharedcomponents/Preferences/Preferences.types';
-import { Bo3SetEndedReason, GamesToWinMode, IBo3SetEndResult, MatchmakingType, RematchMode } from '@/app/_constants/constants';
+import { GamesToWinMode, IBo3SetEndResult } from '@/app/_constants/constants';
 import { useServerSettings } from '@/app/_contexts/ServerSettings.context';
+import { goToExit } from '@/app/_utils/siteUrls';
 
-interface IProps {
-    handleOpenBugReport: () => void;
-    handleOpenPersonReport: () => void;
-    gameType: MatchmakingType;
-}
-
-function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType }: IProps) {
-    const router = useRouter();
-    const { sendLobbyMessage, sendMessage, resetStates, lobbyState, connectedPlayer, isSpectator, statsSubmitNotification, gameState, getOpponent, isAnonymousPlayer } = useGame();
-    const { gamesEnabled, maintenanceMessage, hasLoaded } = useServerSettings();
-    const { user } = useUser();
-    const [karabastStatsMessage, setKarabastStatsMessage] = useState<{ type: string; message: string } | null>(null);
-    const [swuStatsMessage, setSwuStatsMessage] = useState<{ type: string; message: string } | null>(null);
-    const [swuBaseStatsMessage, setSwuBaseStatsMessage] = useState<{ type: string; message: string } | null>(null);
+// End-of-game actions. A rematch is a new launch from swupedia.com, so upstream's rematch,
+// requeue and report controls are gone; "Play again" returns to swupedia.com's play console.
+function EndGameOptions() {
+    const { sendLobbyMessage, sendMessage, lobbyState, connectedPlayer, isSpectator, gameState, getOpponent } = useGame();
+    const { gamesEnabled, hasLoaded } = useServerSettings();
     const [confirmConcedeBo3, setConfirmConcedeBo3] = useState<boolean>(false);
-
-    const isQuickMatch = gameType === MatchmakingType.Quick;
-
-    const opponentId = getOpponent(connectedPlayer);
-    const isAnonymousOpponent = isAnonymousPlayer(opponentId);
-    const canReportOpponent = !isAnonymousPlayer(connectedPlayer) && (!!opponentId && !isAnonymousOpponent);
-    const canReportBug = !isAnonymousPlayer(connectedPlayer);
-    const isReportingDisabled = !!user?.reportingDisabled;
-    const reportingDisabledText = 'Reporting has been disabled for your account';
-
-    // Use the rematchRequest property from lobbyState
-    const rematchRequest = lobbyState?.rematchRequest || null;
-    const isRequestInitiator = rematchRequest && rematchRequest.initiator === connectedPlayer;
 
     // Bo3 state from lobbyState
     const winHistory = lobbyState?.winHistory || null;
@@ -55,29 +30,6 @@ function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType 
     const isBo3SetComplete = isBo3Mode && !!setEndResult;
 
     useEffect(() => {
-        if (statsSubmitNotification) {
-            const notification = statsSubmitNotification;
-
-            if (notification.source === StatsSource.Karabast) {
-                setKarabastStatsMessage({
-                    type: notification.type,
-                    message: notification.message
-                });
-            } else if (notification.source === StatsSource.SwuStats) {
-                setSwuStatsMessage({
-                    type: notification.type,
-                    message: notification.message
-                });
-            } else if (notification.source === StatsSource.SwuBase) {
-                setSwuBaseStatsMessage({
-                    type: notification.type,
-                    message: notification.message
-                });
-            }
-        }
-    }, [statsSubmitNotification]);
-
-    useEffect(() => {
         if (confirmConcedeBo3) {
             const timer = setTimeout(() => setConfirmConcedeBo3(false), 5000);
             return () => clearTimeout(timer);
@@ -86,9 +38,9 @@ function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType 
 
     // ------------------------ Button Handlers ------------------------//
 
-    const handleReturnHome = () => {
+    const handlePlayAgain = () => {
         sendMessage('manualDisconnect');
-        router.push('/');
+        goToExit();
     };
 
     // Click handler for the Concede Bo3 Set button.
@@ -103,146 +55,10 @@ function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType 
         }
     };
 
-    const handleRequeue = async () => {
-        sendMessage('requeue');
-        resetStates();
-        router.push('/quickGame');
-    };
-
-    // For Reset Game/Quick Rematch (Bo1 Custom mode only):
-    // - If no rematch request is active, send a request with mode "reset".
-    // - If a reset request is active and the current user is not the initiator,
-    //   then confirm by sending the actual reset command.
-    const handleResetRequestOrConfirm = () => {
-        if (!rematchRequest) {
-            sendLobbyMessage(['requestRematch', RematchMode.Reset]);
-        } else if (rematchRequest.mode === RematchMode.Reset && !isRequestInitiator) {
-            sendLobbyMessage(['startGameAsync']);
-        }
-    };
-
-    // For the Regular Rematch:
-    // - If no request active, send a request with mode "regular".
-    // - If a regular rematch request is active and the user is not the initiator,
-    //   then confirm it.
-    const handleRegularRequestOrConfirm = () => {
-        if (!rematchRequest) {
-            sendLobbyMessage(['requestRematch', RematchMode.Regular]);
-        } else if (rematchRequest.mode === RematchMode.Regular && !isRequestInitiator) {
-            sendLobbyMessage(['rematch']);
-        }
-    };
-
-    // For Convert to Bo3 (Bo1 only):
-    // - If no request active, send a request with mode "bo1ConvertToBo3".
-    // - If a bo1ConvertToBo3 request is active and the user is not the initiator,
-    //   then confirm it.
-    const handleConvertToBo3RequestOrConfirm = () => {
-        if (!rematchRequest) {
-            sendLobbyMessage(['requestRematch', RematchMode.Bo1ConvertToBo3]);
-        } else if (rematchRequest.mode === RematchMode.Bo1ConvertToBo3 && !isRequestInitiator) {
-            sendLobbyMessage(['rematch']);
-        }
-    };
-
-    // For New Bo3 Set (Bo3 only, after set completes):
-    // - If no request active, send a request with mode "newBo3".
-    // - If a newBo3 request is active and the user is not the initiator,
-    //   then confirm it.
-    const handleNewBo3RequestOrConfirm = () => {
-        if (!rematchRequest) {
-            sendLobbyMessage(['requestRematch', RematchMode.NewBo3]);
-        } else if (rematchRequest.mode === RematchMode.NewBo3 && !isRequestInitiator) {
-            sendLobbyMessage(['rematch']);
-        }
-    };
-
     // For proceeding to next game in Bo3 mid-set:
     const handleProceedToNextGame = () => {
         sendLobbyMessage(['proceedToNextBo3Game']);
     };
-
-    // Function to get color based on notification type
-    const getNotificationColor = (type: string) => {
-        switch (type) {
-            case 'Error':
-                return '#d32f2f';
-            case 'Warning':
-                return '#ff9800';
-            default:
-                return '#4caf50';
-        }
-    };
-
-    // --- Determine Button State & Text ---
-
-    // For Reset Game (Bo1 Custom mode only):
-    let resetButtonText = 'Reset Game/Quick Rematch';
-    let resetButtonDisabled = false;
-    if (rematchRequest) {
-        if (rematchRequest.mode !== RematchMode.Reset) {
-            resetButtonDisabled = true;
-            resetButtonText = 'Disabled';
-        } else {
-            if (isRequestInitiator) {
-                resetButtonText = 'Waiting for confirmation...';
-                resetButtonDisabled = true;
-            } else {
-                resetButtonText = 'Confirm Reset';
-            }
-        }
-    }
-
-    // For Regular Rematch (Bo1 only):
-    let regularButtonText = isQuickMatch ? 'Request Rematch' : 'Regular Rematch';
-    let regularButtonDisabled = false;
-    if (rematchRequest) {
-        if (rematchRequest.mode !== RematchMode.Regular) {
-            regularButtonDisabled = true;
-            regularButtonText = 'Disabled';
-        } else {
-            if (isRequestInitiator) {
-                regularButtonText = 'Waiting for confirmation...';
-                regularButtonDisabled = true;
-            } else {
-                regularButtonText = 'Confirm Rematch';
-            }
-        }
-    }
-
-    // For Convert to Bo3 (Bo1 only):
-    let convertToBo3ButtonText = 'Convert to Best of 3';
-    let convertToBo3ButtonDisabled = false;
-    if (rematchRequest) {
-        if (rematchRequest.mode !== RematchMode.Bo1ConvertToBo3) {
-            convertToBo3ButtonDisabled = true;
-            convertToBo3ButtonText = 'Disabled';
-        } else {
-            if (isRequestInitiator) {
-                convertToBo3ButtonText = 'Waiting for confirmation...';
-                convertToBo3ButtonDisabled = true;
-            } else {
-                convertToBo3ButtonText = 'Confirm Convert to Bo3';
-            }
-        }
-    }
-
-    // For Rematch Bo3 (Bo3 set complete only):
-    let newBo3ButtonText = 'Rematch Bo3';
-    let newBo3ButtonDisabled = false;
-    if (rematchRequest) {
-        if (rematchRequest.mode !== RematchMode.NewBo3) {
-            newBo3ButtonDisabled = true;
-            newBo3ButtonText = 'Disabled';
-        } else {
-            if (isRequestInitiator) {
-                newBo3ButtonText = 'Waiting for confirmation...';
-                newBo3ButtonDisabled = true;
-            } else {
-                newBo3ButtonText = 'Confirm New Bo3';
-            }
-        }
-    }
 
     // For Ready for Next Game (Bo3 mid-set only):
     let readyForNextGameButtonText = 'Ready for Next Game';
@@ -251,9 +67,6 @@ function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType 
         readyForNextGameButtonText = 'Waiting for opponent...';
         readyForNextGameButtonDisabled = true;
     }
-
-    // Check if we have any stats messages to show
-    const hasStatsMessages = karabastStatsMessage || swuStatsMessage || swuBaseStatsMessage;
 
     // Check if maintenance mode is enabled
     const isMaintenanceMode = hasLoaded && !gamesEnabled;
@@ -328,76 +141,11 @@ function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType 
                     </Box>
                 ) : (
                     <Box sx={styles.contentContainer}>
-                        <PreferenceButton variant={'concede'} text={'Return Home'} buttonFnc={handleReturnHome} />
+                        <PreferenceButton variant={'standard'} text={isSpectator ? 'Leave' : 'Play again'} buttonFnc={handlePlayAgain} sx={{ minWidth: '140px' }} />
                         <Typography sx={styles.typeographyStyle}>
-                            Return to main page.
+                            {isSpectator ? 'Return to SWUPedia.' : 'Return to SWUPedia to start a new game.'}
                         </Typography>
                     </Box>
-                )}
-
-                {/* New Bo3 Set - Bo3 set complete only */}
-                {isBo3Mode && isBo3SetComplete && !isSpectator && !isMaintenanceMode && (
-                    <Box sx={styles.contentContainer}>
-                        <PreferenceButton
-                            variant={'standard'}
-                            text={newBo3ButtonText}
-                            buttonFnc={handleNewBo3RequestOrConfirm}
-                            disabled={newBo3ButtonDisabled}
-                        />
-                        <Typography sx={styles.typeographyStyle}>
-                            {rematchRequest && rematchRequest.mode === RematchMode.NewBo3
-                                ? isRequestInitiator
-                                    ? 'Waiting for your opponent to confirm Bo3 rematch.'
-                                    : 'Confirm you wish to start a new best of 3 set.'
-                                : 'Start a fresh best of 3 set with your opponent.'}
-                        </Typography>
-                    </Box>
-                )}
-
-                {/* Requeue - Bo3 QuickMatch set complete only */}
-                {isBo3Mode && isBo3SetComplete && isQuickMatch && !isSpectator && !isMaintenanceMode && (
-                    <Box sx={styles.contentContainer}>
-                        <PreferenceButton variant={'standard'} text={'Requeue'} buttonFnc={handleRequeue} />
-                        <Typography sx={styles.typeographyStyle}>
-                            Reenter the queue for a new opponent.
-                        </Typography>
-                    </Box>
-                )}
-
-                {/* Report Bug - Bo3 mode only (in Actions section) */}
-                {isBo3Mode && !isSpectator && (
-                    <>
-                        <Box sx={styles.contentContainer}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={'Report Bug'}
-                                buttonFnc={handleOpenBugReport}
-                                sx={{ minWidth: '140px' }}
-                                disabled={!canReportBug || isReportingDisabled}
-                            />
-                            <Typography sx={styles.typeographyStyle}>
-                                {isReportingDisabled ? reportingDisabledText : canReportBug ? 'Report a bug to the developer team' : 'Please log in to submit reports'}
-                            </Typography>
-                        </Box>
-                        <Box sx={styles.contentContainer}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={'Report opponent'}
-                                buttonFnc={handleOpenPersonReport}
-                                sx={{ minWidth: '140px' }}
-                                disabled={!canReportOpponent || isReportingDisabled}
-                            />
-                            <Typography sx={styles.typeographyStyle}>
-                                {isReportingDisabled ? reportingDisabledText
-                                    : isAnonymousPlayer(connectedPlayer)
-                                        ? 'Please log in to submit reports'
-                                        : isAnonymousOpponent
-                                            ? 'Cannot submit reports for anonymous opponents'
-                                            : 'Report opponent to the developer team'
-                                }
-                            </Typography>
-                        </Box>
-                    </>
                 )}
             </Box>
 
@@ -414,169 +162,6 @@ function EndGameOptions({ handleOpenBugReport, handleOpenPersonReport, gameType 
                     getOpponent={getOpponent}
                     playerNames={winHistory?.playerNames}
                 />
-            )}
-
-            {isMaintenanceMode ? (
-                <Box sx={styles.functionContainer}>
-                    <Typography sx={styles.typographyContainer} variant={'h3'}>Maintenance</Typography>
-                    <Divider sx={{ mb: '20px' }} />
-                    <Typography sx={styles.typeographyStyle}>
-                        Rematching has been disabled. {maintenanceMessage}
-                    </Typography>
-                </Box>
-            ) : (
-                !isSpectator && !isBo3Mode && (
-                    <Box sx={styles.functionContainer}>
-                        <Typography sx={styles.typographyContainer} variant={'h3'}>
-                            {isQuickMatch ? 'Actions' : 'Rematch'}
-                        </Typography>
-                        <Divider sx={{ mb: '20px' }} />
-
-                        {/* Requeue - QuickMatch only */}
-                        {isQuickMatch && (
-                            <Box sx={styles.contentContainer}>
-                                <PreferenceButton variant={'standard'} text={'Requeue'} buttonFnc={handleRequeue} />
-                                <Typography sx={styles.typeographyStyle}>
-                                    Reenter the queue for a new opponent.
-                                </Typography>
-                            </Box>
-                        )}
-
-                        {/* Reset Game/Quick Rematch - Custom only */}
-                        {!isQuickMatch && (
-                            <Box sx={styles.contentContainer}>
-                                <PreferenceButton
-                                    variant={'standard'}
-                                    text={resetButtonText}
-                                    buttonFnc={handleResetRequestOrConfirm}
-                                    disabled={resetButtonDisabled}
-                                />
-                                <Typography sx={styles.typeographyStyle}>
-                                    Restart the current game with no deck changes.
-                                </Typography>
-                            </Box>
-                        )}
-
-                        {/* Regular Rematch */}
-                        <Box sx={styles.contentContainer}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={regularButtonText}
-                                buttonFnc={handleRegularRequestOrConfirm}
-                                disabled={regularButtonDisabled}
-                            />
-                            <Typography sx={styles.typeographyStyle}>
-                                {rematchRequest
-                                    ? isRequestInitiator
-                                        ? 'Waiting for your opponent to confirm rematch.'
-                                        : 'Confirm you wish to rematch with your opponent.'
-                                    : 'Return to lobby to start a new game with the same opponent.'}
-                            </Typography>
-                        </Box>
-
-                        {/* Convert to Best of 3 */}
-                        <Box sx={styles.contentContainer}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={convertToBo3ButtonText}
-                                buttonFnc={handleConvertToBo3RequestOrConfirm}
-                                disabled={convertToBo3ButtonDisabled}
-                            />
-                            <Typography sx={styles.typeographyStyle}>
-                                {rematchRequest && rematchRequest.mode === RematchMode.Bo1ConvertToBo3
-                                    ? isRequestInitiator
-                                        ? 'Waiting for your opponent to confirm conversion to Bo3.'
-                                        : 'Confirm you wish to convert this match to a best of 3.'
-                                    : 'Convert this match to a best of 3, counting this game as game 1.'}
-                            </Typography>
-                        </Box>
-
-                        {/* Report Bug */}
-                        <Box sx={styles.contentContainer}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={'Report Bug'}
-                                buttonFnc={handleOpenBugReport}
-                                sx={{ minWidth: '140px' }}
-                                disabled={!canReportBug || isReportingDisabled}
-                            />
-                            <Typography sx={styles.typeographyStyle}>
-                                {isReportingDisabled ? reportingDisabledText : canReportBug ? 'Report a bug to the developer team' : 'Please log in to submit reports'}
-                            </Typography>
-                        </Box>
-                        <Box sx={styles.contentContainer}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={'Report opponent'}
-                                buttonFnc={handleOpenPersonReport}
-                                sx={{ minWidth: '140px' }}
-                                disabled={!canReportOpponent || isReportingDisabled}
-                            />
-                            <Typography sx={styles.typeographyStyle}>
-                                {isReportingDisabled ? reportingDisabledText
-                                    : isAnonymousPlayer(connectedPlayer)
-                                        ? 'Please log in to submit reports'
-                                        : isAnonymousOpponent
-                                            ? 'Cannot submit reports for anonymous opponents'
-                                            : 'Report opponent to the developer team'
-                                }
-                            </Typography>
-                        </Box>
-                    </Box>
-                )
-            )}
-
-            <Box sx={{ ...styles.functionContainer, mb: '0px' }}>
-                <Typography sx={styles.typographyContainer} variant={'h3'}>Thanks for playing</Typography>
-                <Divider sx={{ mb: '20px' }} />
-                <Typography sx={styles.typeographyStyle}>
-                    If you run into any issues, please let us know in
-                    <MuiLink
-                        href="https://discord.gg/hKRaqHND4v"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ ml: '4px' }}
-                    >
-                        Discord
-                    </MuiLink>. Thanks!
-                </Typography>
-            </Box>
-
-            {hasStatsMessages && (
-                <Box sx={{ ...styles.functionContainer, mt: '35px', mb: '0px', height: '7rem' }}>
-                    <Typography sx={styles.typographyContainer} variant={'h3'}>Deck Stats</Typography>
-                    <Divider sx={{ mb: '20px' }} />
-
-                    {karabastStatsMessage && (
-                        <Typography sx={{
-                            ...styles.typeographyStyle,
-                            color: getNotificationColor(karabastStatsMessage.type),
-                            mb: swuStatsMessage || swuBaseStatsMessage ? '10px' : '0px'
-                        }}>
-                            <strong>Karabast:</strong> {karabastStatsMessage.message}
-                        </Typography>
-                    )}
-
-                    {swuStatsMessage && (
-                        <Typography sx={{
-                            ...styles.typeographyStyle,
-                            color: getNotificationColor(swuStatsMessage.type),
-                            mb: swuBaseStatsMessage ? '10px' : '0px'
-                        }}>
-                            <strong>SWUStats:</strong> {swuStatsMessage.message}
-                        </Typography>
-                    )}
-
-                    {swuBaseStatsMessage && (
-                        <Typography sx={{
-                            ...styles.typeographyStyle,
-                            color: getNotificationColor(swuBaseStatsMessage.type),
-                            mb: '10px'
-                        }}>
-                            <strong>SWUBase:</strong> {swuBaseStatsMessage.message}
-                        </Typography>
-                    )}
-                </Box>
             )}
         </>
     );

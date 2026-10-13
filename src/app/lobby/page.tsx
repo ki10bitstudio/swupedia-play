@@ -8,7 +8,7 @@ import SetUp from '../_components/Lobby/SetUp/SetUp';
 import LobbyConcededPopup from '../_components/Lobby/_subcomponents/LobbyConcededPopup/LobbyConcededPopup';
 import { useGame } from '@/app/_contexts/Game.context';
 import { s3ImageURL } from '@/app/_utils/s3Utils';
-import { Bo3SetEndedReason, GamesToWinMode, IBo3SetEndResult, MatchmakingType } from '@/app/_constants/constants';
+import { Bo3SetEndedReason, GamesToWinMode, IBo3SetEndResult } from '@/app/_constants/constants';
 
 const Lobby = () => {
     const pathname = usePathname();
@@ -28,7 +28,6 @@ const Lobby = () => {
         setEndResult?.endedReason === Bo3SetEndedReason.OnePlayerLobbyTimeout ||
         setEndResult?.endedReason === Bo3SetEndedReason.BothPlayersLobbyTimeout
     );
-    const gameType = lobbyState?.gameType || MatchmakingType.PrivateLobby;
 
     useEffect(() => {
         if(lobbyState && lobbyState.gameOngoing){
@@ -70,7 +69,7 @@ const Lobby = () => {
 
     return (
         <>
-            {showSetEndedPopup && <LobbyConcededPopup gameType={gameType} />}
+            {showSetEndedPopup && <LobbyConcededPopup />}
             <Grid container sx={styles.containerStyle} spacing={2}>
                 <Grid size={4} sx={styles.setUpGridStyle}>
                     <SetUp/>

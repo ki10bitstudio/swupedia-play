@@ -14,22 +14,13 @@ import {
 } from '@mui/material';
 import PreferenceButton from '@/app/_components/_sharedcomponents/Preferences/_subComponents/PreferenceButton';
 import { useGame } from '@/app/_contexts/Game.context';
-import { useRouter } from 'next/navigation';
 import { ILobbyUserProps } from '@/app/_components/Lobby/LobbyTypes';
-import { MatchmakingType, RematchMode, Bo3SetEndedReason, IBo3SetEndResult } from '@/app/_constants/constants';
+import { Bo3SetEndedReason, IBo3SetEndResult } from '@/app/_constants/constants';
 import { scoreTableStyles, sortPlayersConnectedFirst } from '@/app/_components/_sharedcomponents/Bo3/Bo3ScoreTable.styles';
-import { useServerSettings } from '@/app/_contexts/ServerSettings.context';
+import { goToExit } from '@/app/_utils/siteUrls';
 
-interface ILobbyConcededPopupProps {
-    gameType: MatchmakingType;
-}
-
-const LobbyConcededPopup: React.FC<ILobbyConcededPopupProps> = ({ gameType }) => {
-    const router = useRouter();
-    const { lobbyState, connectedPlayer, sendLobbyMessage, sendMessage, resetStates, isSpectator } = useGame();
-    const { gamesEnabled, hasLoaded } = useServerSettings();
-
-    const isQuickMatch = gameType === MatchmakingType.Quick;
+const LobbyConcededPopup: React.FC = () => {
+    const { lobbyState, connectedPlayer, sendMessage, isSpectator } = useGame();
 
     // Bo3 state from lobbyState
     const winHistory = lobbyState?.winHistory || null;
@@ -37,16 +28,6 @@ const LobbyConcededPopup: React.FC<ILobbyConcededPopupProps> = ({ gameType }) =>
     const playerNames: Record<string, string> = winHistory?.playerNames || {};
     const setEndResult: IBo3SetEndResult | null = winHistory?.setEndResult || null;
     const users = lobbyState?.users;
-
-    // Rematch request state
-    const rematchRequest = lobbyState?.rematchRequest || null;
-    const isRequestInitiator = rematchRequest && rematchRequest.initiator === connectedPlayer;
-
-    // Requeue is disabled if current player timed out
-    const requeueDisabled = 
-        setEndResult?.endedReason === Bo3SetEndedReason.BothPlayersLobbyTimeout ||
-        (setEndResult?.endedReason === Bo3SetEndedReason.OnePlayerLobbyTimeout && 
-            setEndResult.timeoutPlayerId === connectedPlayer);
 
     // Helper to get player name with fallback to playerNames from winHistory
     const getPlayerName = (playerId: string): string => {
@@ -93,50 +74,11 @@ const LobbyConcededPopup: React.FC<ILobbyConcededPopupProps> = ({ gameType }) =>
 
     // ------------------------ Button Handlers ------------------------//
 
-    const handleReturnHome = () => {
+    // A rematch is a new launch from swupedia.com, so the only way on is back there.
+    const handlePlayAgain = () => {
         sendMessage('manualDisconnect');
-        router.push('/');
+        goToExit();
     };
-
-    const handleRequeue = async () => {
-        sendMessage('requeue');
-        resetStates();
-        router.push('/quickGame');
-    };
-
-    // For New Bo3 Set:
-    const handleNewBo3RequestOrConfirm = () => {
-        if (!rematchRequest) {
-            sendLobbyMessage(['requestRematch', RematchMode.NewBo3]);
-        } else if (rematchRequest.mode === RematchMode.NewBo3 && !isRequestInitiator) {
-            sendLobbyMessage(['rematch']);
-        }
-    };
-
-    // --- Determine Button State & Text ---
-
-    // For Rematch Bo3: disabled if any timeout occurred
-    const isTimeoutResult = setEndResult?.endedReason === Bo3SetEndedReason.OnePlayerLobbyTimeout ||
-        setEndResult?.endedReason === Bo3SetEndedReason.BothPlayersLobbyTimeout;
-
-    let newBo3ButtonText = 'Rematch Bo3';
-    let newBo3ButtonDisabled = isTimeoutResult; // Disable if timeout
-    if (rematchRequest) {
-        if (rematchRequest.mode !== RematchMode.NewBo3) {
-            newBo3ButtonDisabled = true;
-            newBo3ButtonText = 'Disabled';
-        } else {
-            if (isRequestInitiator) {
-                newBo3ButtonText = 'Waiting for confirmation...';
-                newBo3ButtonDisabled = true;
-            } else {
-                newBo3ButtonText = 'Confirm New Bo3';
-            }
-        }
-    }
-
-    // Check if maintenance mode is enabled
-    const isMaintenanceMode = hasLoaded && !gamesEnabled;
 
     // ------------------------STYLES------------------------//
     const styles = {
@@ -275,53 +217,16 @@ const LobbyConcededPopup: React.FC<ILobbyConcededPopupProps> = ({ gameType }) =>
                 {/* Action Buttons */}
                 <Typography sx={styles.sectionTitle}>Actions</Typography>
                 <CardActions sx={styles.buttonContainer}>
-                    {/* Return Home - always shown */}
                     <Box sx={styles.buttonRow}>
                         <PreferenceButton
-                            variant={'concede'}
-                            text={'Return Home'}
-                            buttonFnc={handleReturnHome}
+                            variant={'standard'}
+                            text={isSpectator ? 'Leave' : 'Play again'}
+                            buttonFnc={handlePlayAgain}
                         />
                         <Typography sx={styles.buttonDescription}>
-                            Return to main page.
+                            {isSpectator ? 'Return to SWUPedia.' : 'Return to SWUPedia to start a new game.'}
                         </Typography>
                     </Box>
-
-                    {/* New Bo3 Set - for non-spectators */}
-                    {!isSpectator && !isMaintenanceMode && (
-                        <Box sx={styles.buttonRow}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={newBo3ButtonText}
-                                buttonFnc={handleNewBo3RequestOrConfirm}
-                                disabled={newBo3ButtonDisabled}
-                            />
-                            <Typography sx={styles.buttonDescription}>
-                                {rematchRequest && rematchRequest.mode === RematchMode.NewBo3
-                                    ? isRequestInitiator
-                                        ? 'Waiting for opponent to confirm.'
-                                        : 'Confirm Bo3 rematch.'
-                                    : 'Rematch with a new best of 3 set.'}
-                            </Typography>
-                        </Box>
-                    )}
-
-                    {/* Requeue - for non-spectators in QuickMatch */}
-                    {!isSpectator && isQuickMatch && !isMaintenanceMode && (
-                        <Box sx={styles.buttonRow}>
-                            <PreferenceButton
-                                variant={'standard'}
-                                text={'Requeue'}
-                                buttonFnc={handleRequeue}
-                                disabled={requeueDisabled}
-                            />
-                            <Typography sx={styles.buttonDescription}>
-                                {requeueDisabled 
-                                    ? 'Requeue unavailable due to timeout.'
-                                    : 'Reenter the queue for a new opponent.'}
-                            </Typography>
-                        </Box>
-                    )}
                 </CardActions>
             </Card>
         </Box>
