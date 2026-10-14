@@ -19,7 +19,22 @@
     font-family: var(--font-geist-sans), Arial, sans-serif;
 }
 
-/* Where swupedia.com's header shows its wordmark: a 64px band in the max-w-7xl container. */
+/*
+ * swupedia.com's fixed header band (Header.tsx: `border-b border-room-hairline bg-room-surface/70
+ * backdrop-blur-md`, full-bleed), so the top edge doesn't change on the handoff. The room tokens are
+ * globals.css's --room-surface and --room-hairline, the original navy the header and footer keep.
+ */
+.swu-launching__header {
+    box-sizing: border-box;
+    width: 100%;
+    flex-shrink: 0;
+    border-bottom: 1px solid #10293e;
+    background-color: rgb(4 18 31 / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Inside the band, where the header shows its wordmark: 64px high in the max-w-7xl container. */
 .swu-launching__masthead {
     box-sizing: border-box;
     width: 100%;
@@ -39,13 +54,16 @@
     width: auto;
 }
 
-/* The main column, with the bar centred on the viewport (the bottom padding offsets the masthead). */
+/*
+ * The main column, with the bar centred on the viewport (the bottom padding offsets the header band,
+ * 64px plus its 1px border).
+ */
 .swu-launching__main {
     box-sizing: border-box;
     width: 100%;
     max-width: 80rem;
     margin: 0 auto;
-    padding: 0 16px 64px;
+    padding: 0 16px 65px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -107,7 +125,7 @@
     }
 
     .swu-launching__main {
-        padding: 0 32px 64px;
+        padding: 0 32px 65px;
     }
 
     .swu-launching__bar {

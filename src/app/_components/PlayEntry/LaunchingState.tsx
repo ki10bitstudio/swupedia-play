@@ -3,17 +3,19 @@ import SwupediaMark from '@/assets/swupedia-mark.svg';
 import '@/app/_theme/launching.css';
 
 /**
- * "Launching…": the swupedia mark and the busy Launch button from swupedia.com's play console,
- * on Ground. The entry route shows it while the ticket is redeemed, and the lobby keeps showing
+ * "Launching…": swupedia.com's header band with the swupedia mark, and the busy Launch button from
+ * its play console, on Ground. The entry route shows it while the ticket is redeemed, and the lobby keeps showing
  * it until the first lobby state arrives, so the member sees one launch from the console to the
  * lobby rather than a second loading screen. No hooks and no MUI: in production the entry route
  * renders it on the server, before any client JS.
  */
 const LaunchingState: React.FC = () => (
     <div className="swu-launching">
-        <div className="swu-launching__masthead">
-            <SwupediaMark className="swu-launching__mark" />
-        </div>
+        <header className="swu-launching__header">
+            <div className="swu-launching__masthead">
+                <SwupediaMark className="swu-launching__mark" />
+            </div>
+        </header>
         <main className="swu-launching__main">
             <div className="swu-launching__bar" role="status" aria-live="polite">
                 <span className="swu-launching__button">
