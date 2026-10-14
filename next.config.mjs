@@ -1,8 +1,7 @@
-import { PHASE_PRODUCTION_BUILD } from 'next/constants.js';
-
 // NEXT_PUBLIC_ROOT_URL is the bot server, inlined into the client at build time: the ticket redeem
 // call, the socket and the CSP's connect-src all come from it. A production build without it would
-// build cleanly and then fail every launch, so refuse to build.
+// build cleanly and then fail every launch, so refuse to build. Checked from the webpack hook of a
+// production compile, which only `next build` runs (`next lint` loads this config too).
 const requireBotServerUrl = () => {
     const url = process.env.NEXT_PUBLIC_ROOT_URL;
     let valid = false;
@@ -28,7 +27,10 @@ const nextConfig = {
         // TODO: re-enable linting if we can get vscode to do auto-fixes like with the BE repo setup
         ignoreDuringBuilds: true,
     },
-    webpack(config) {
+    webpack(config, { dev }) {
+        if (!dev) {
+            requireBotServerUrl();
+        }
         // Add SVGR loader for importing SVGs as React components
         config.module.rules.push({
             test: /\.svg$/,
@@ -63,9 +65,4 @@ const nextConfig = {
     },
 };
 
-export default (phase) => {
-    if (phase === PHASE_PRODUCTION_BUILD) {
-        requireBotServerUrl();
-    }
-    return nextConfig;
-};
+export default nextConfig;
