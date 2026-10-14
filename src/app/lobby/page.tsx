@@ -8,6 +8,7 @@ import SetUp from '../_components/Lobby/SetUp/SetUp';
 import LobbyConcededPopup from '../_components/Lobby/_subcomponents/LobbyConcededPopup/LobbyConcededPopup';
 import { useGame } from '@/app/_contexts/Game.context';
 import { Bo3SetEndedReason, GamesToWinMode, IBo3SetEndResult } from '@/app/_constants/constants';
+import LaunchingState from '@/app/_components/PlayEntry/LaunchingState';
 
 const Lobby = () => {
     const pathname = usePathname();
@@ -34,8 +35,9 @@ const Lobby = () => {
         }
     }, [lobbyState, router]);
 
+    // Until the first lobby state arrives, the launch from swupedia.com is still under way.
     if(!lobbyState){
-        return null;
+        return <LaunchingState />;
     }
     // ------------------------STYLES------------------------//
 

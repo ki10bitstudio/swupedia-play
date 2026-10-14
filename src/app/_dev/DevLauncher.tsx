@@ -2,13 +2,15 @@
 
 // Development-only stand-in for the play ticket: paste a deck, pick a format, create a private
 // lobby against the bot as the anonymous user, then open the lobby. page.tsx only imports this
-// in development, so it is not part of the production client bundle.
-import React, { FormEvent, useState } from 'react';
+// in development (through DevEntry), so it is not part of the production client bundle.
+import React, { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Button, CircularProgress, MenuItem, TextField, Typography } from '@mui/material';
 import { useUser } from '@/app/_contexts/User.context';
 import { getUserPayload } from '@/app/_utils/ServerAndLocalStorageUtils';
 import { getReadableDeckErrors } from '@/app/_validators/DeckValidation/getReadableDeckErrors';
+import { clearPlaySession } from '@/app/_utils/playSession';
+import { isLaunchFlag, LaunchFlag } from '@/app/_utils/siteUrls';
 import {
     DefaultFormat,
     FormatLabels,
@@ -18,6 +20,18 @@ import {
     SwuGameFormat,
 } from '@/app/_constants/constants';
 
+// What swupedia.com's console says for each flag it is sent back with (U3 in the plan).
+const LAUNCH_NOTICES: Record<LaunchFlag, string> = {
+    expired: 'The game took too long to open.',
+    used: 'That launch was already used.',
+    'in-progress': 'You already have a game open against the bot.',
+    busy: 'The bot is busy right now.',
+    deck: 'The bot server couldn\'t load your deck.',
+    'bot-deck': 'The bot server couldn\'t load the bot\'s deck.',
+    failed: 'The game couldn\'t be started.',
+    ended: 'That game has ended.',
+};
+
 const DevLauncher: React.FC = () => {
     const router = useRouter();
     const { user, anonymousUserId } = useUser();
@@ -26,6 +40,21 @@ const DevLauncher: React.FC = () => {
     const [lobbyName, setLobbyName] = useState('');
     const [errors, setErrors] = useState<string[]>([]);
     const [isCreating, setIsCreating] = useState(false);
+    // The exit's `?launch=<flag>`, as the console would show it. Only a known flag is shown; the
+    // value itself is never rendered.
+    const [launchFlag] = useState<LaunchFlag | null>(() => {
+        const flag = new URLSearchParams(window.location.search).get('launch');
+        return isLaunchFlag(flag) ? flag : null;
+    });
+
+    // The launcher plays anonymously: forget any play session a ticket left in this tab, and the
+    // flag once it has been read.
+    useEffect(() => {
+        clearPlaySession();
+        if (window.location.search) {
+            window.history.replaceState(null, '', '/');
+        }
+    }, []);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -108,6 +137,11 @@ const DevLauncher: React.FC = () => {
             fontWeight: 700,
             mb: 0,
         },
+        notice: {
+            fontSize: '0.85rem',
+            color: '#ff6467',
+            mb: 0,
+        },
         hint: {
             fontSize: '0.85rem',
             color: '#8aa2b8',
@@ -147,6 +181,11 @@ const DevLauncher: React.FC = () => {
             <Box component="form" onSubmit={handleSubmit} sx={styles.form}>
                 <Typography sx={styles.rubric}>Development launcher</Typography>
                 <Typography sx={styles.title}>Play the bot</Typography>
+                {launchFlag && (
+                    <Typography sx={styles.notice} role="status">
+                        Back from the play site ({launchFlag}): {LAUNCH_NOTICES[launchFlag]}
+                    </Typography>
+                )}
                 <Typography sx={styles.hint}>
                     Stands in for the play ticket from swupedia.com. Creates a private lobby on {process.env.NEXT_PUBLIC_ROOT_URL} as
                     {' '}{user ? user.username : `anonymous ${anonymousUserId?.substring(0, 6) ?? ''}`}, then opens it.

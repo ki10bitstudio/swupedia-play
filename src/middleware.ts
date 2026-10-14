@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exitUrl } from '@/app/_utils/siteUrls';
 
-// The play site is the lobby and the board. Every other path is sent back where a player
-// comes from, as a server-side 307: swupedia.com's play console in production, the dev
-// launcher at / in development (where / itself is served).
-const PAGES = new Set(['/lobby', '/GameBoard']);
+// The play site is the entry route, the lobby and the board. Every other path is sent back where
+// a player comes from, as a server-side 307: swupedia.com's play console in production, the dev
+// launcher at / in development.
+//
+// / passes in every environment: the play ticket arrives in its URL fragment, which never reaches
+// the server, so only the page itself can tell a launch from a stray visit.
+const PAGES = new Set(['/', '/lobby', '/GameBoard']);
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     if (PAGES.has(pathname)) {
-        return NextResponse.next();
-    }
-    // In development / is the dev launcher, which is where exitUrl() points, so let it through.
-    if (process.env.NODE_ENV === 'development' && pathname === '/') {
         return NextResponse.next();
     }
     // new URL handles both the relative dev exit and the absolute production one.
