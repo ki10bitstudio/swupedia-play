@@ -1,3 +1,24 @@
+import { PHASE_PRODUCTION_BUILD } from 'next/constants.js';
+
+// NEXT_PUBLIC_ROOT_URL is the bot server, inlined into the client at build time: the ticket redeem
+// call, the socket and the CSP's connect-src all come from it. A production build without it would
+// build cleanly and then fail every launch, so refuse to build.
+const requireBotServerUrl = () => {
+    const url = process.env.NEXT_PUBLIC_ROOT_URL;
+    let valid = false;
+    try {
+        valid = !!url && ['http:', 'https:'].includes(new URL(url).protocol);
+    } catch {
+        valid = false;
+    }
+    if (!valid) {
+        throw new Error(
+            'NEXT_PUBLIC_ROOT_URL must be set to the bot server\'s http(s) origin for a production build ' +
+            `(got ${url === undefined ? 'nothing' : JSON.stringify(url)}).`
+        );
+    }
+};
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
@@ -42,4 +63,9 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+export default (phase) => {
+    if (phase === PHASE_PRODUCTION_BUILD) {
+        requireBotServerUrl();
+    }
+    return nextConfig;
+};

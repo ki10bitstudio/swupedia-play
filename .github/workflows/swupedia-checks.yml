@@ -33,4 +33,7 @@ jobs:
           node-version: "22.x"
           cache: "npm"
       - run: npm ci
+      # next.config.mjs refuses a production build without the bot server's URL.
       - run: npm run build
+        env:
+          NEXT_PUBLIC_ROOT_URL: https://bot.swupedia.com
