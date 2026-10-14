@@ -2,8 +2,8 @@
 
 // Development's `/`: a launch link with a ticket in the fragment (`/#ticket=…`, signed by the bot
 // repo's `pnpm play:sign` or a local swupedia.com) redeems against a local `pnpm serve` exactly as
-// in production; anything else is the dev launcher, which plays against `pnpm karabast`
-// anonymously. page.tsx only imports this in development.
+// in production; anything else is the dev launcher, which plays anonymously against the bot repo's
+// dev server. page.tsx only imports this in development.
 import React, { useState } from 'react';
 import DevLauncher from './DevLauncher';
 import PlayEntry from '@/app/_components/PlayEntry/PlayEntry';
