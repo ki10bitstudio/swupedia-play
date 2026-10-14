@@ -58,6 +58,9 @@ interface IGameContextType {
 
 const GameContext = createContext<IGameContextType | undefined>(undefined);
 
+// How long a play-session socket may go without any lobby or game state before giving up.
+const LOBBY_WAIT_MS = 20_000;
+
 export const GameProvider = ({ children }: { children: ReactNode }) => {
     const [gameState, setGameState] = useState<any>(null);
     const lastGameIdRef = useRef<string | null>(null);
@@ -82,6 +85,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const [playSession] = useState(readPlaySession);
     const socketUser = playSession ? null : user;
     const socketAnonymousUserId = playSession ? null : anonymousUserId;
+    // A play-session socket that gets no lobby state in time (the bot server down and socket.io
+    // retrying) gives up instead of leaving the launching state up forever.
+    const lobbyWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Initialize sound handler with user preferences
     const { playSound } = useSoundHandler({
@@ -320,8 +326,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             }
         });
 
+        if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
+        lobbyWaitTimer.current = playSession ? setTimeout(() => goToExit('failed'), LOBBY_WAIT_MS) : null;
+
         newSocket.on('connection_error', (error: any) => {
             console.error('Error joining lobby:', error);
+            // With a play session the lobby is gone (the server removed it, or it timed out): back
+            // to the console with its sentence, no raw code in a blocking alert.
+            if (playSession) {
+                goToExit('ended');
+                return;
+            }
             alert(error);
             goToExit();
         });
@@ -332,11 +347,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         });
 
         newSocket.on('inactiveDisconnect', () => {            
+            if (playSession) {
+                goToExit('ended');
+                return;
+            }
             alert('You have been disconnected due to inactivity');
             newSocket.disconnect();
         });
 
         newSocket.on('gamestate', (gameState: any) => {
+            if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
             if(isSpectatorMode){
                 setConnectedPlayer(Object.keys(gameState.players)[0])
             }
@@ -379,6 +399,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         });
 
         newSocket.on('lobbystate', (lobbyState: any) => {
+            if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
             setLobbyState(lobbyState);
             if (process.env.NODE_ENV === 'development') {
                 console.log('Lobby state received:', lobbyState);
@@ -403,6 +424,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         // Server requests the player's screen resolution at game start for analytics logging.
         newSocket.on('requestScreenResolution', () => {
+            // The bot server doesn't collect it and would refuse the packet.
+            if (playSession) return;
             if (typeof window === 'undefined' || !window.screen) return;
             newSocket.emit('lobby', 'reportScreenResolution', {
                 width: window.screen.width,
@@ -424,6 +447,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         return () => {
             newSocket?.disconnect();
+            if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
         };
     }, [socketUser, socketAnonymousUserId, openPopup, clearPopups, prunePromptStatePopups, status, session?.jwtToken]);
 
