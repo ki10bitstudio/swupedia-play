@@ -121,36 +121,3 @@ export enum AdminRole {
     Developer = 'Developer',
     Moderator = 'Moderator',
 }
-
-// Extend Next-auth types
-declare module 'next-auth' {
-    interface User {
-        id: string;
-        provider: string;
-    }
-
-    interface Session {
-        jwtToken: string;
-        user: {
-            id?: string;
-            name?: string;
-            email?: string;
-            image?: string;
-            provider: string;
-            userId?: string;
-        };
-    }
-}
-
-declare module 'next-auth/jwt'{
-    interface JWT {
-        id?: string;
-        name?: string;
-        email?: string;
-        picture?: string;
-        provider?: string;
-        providerId?: string;
-        userId?: string;
-        exp: number;
-    }
-}

@@ -20,6 +20,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    // Everything except Next's own files, the auth API and files in public/ (paths with a dot).
-    matcher: ['/((?!_next/|api/auth/|.*\\.).*)'],
+    // Everything except Next's own files and files in public/ (paths with a dot).
+    matcher: ['/((?!_next/|.*\\.).*)'],
 };

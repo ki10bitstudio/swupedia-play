@@ -7,7 +7,7 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signIn, signOut } from '@/app/_utils/session';
 import { useRouter, usePathname } from 'next/navigation';
 import { IUserContextType, IPreferences, IModerationAction, ModerationFieldState } from './UserTypes';
 import { v4 as uuid } from 'uuid';

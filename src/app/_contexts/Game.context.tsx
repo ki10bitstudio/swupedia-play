@@ -15,7 +15,7 @@ import { useSearchParams } from 'next/navigation';
 import { usePopup } from './Popup.context';
 import { PopupSource } from '@/app/_components/_sharedcomponents/Popup/Popup.types';
 import { ZoneName } from '../_constants/constants';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/app/_utils/session';
 import { useDistributionPrompt, IDistributionPromptData } from '@/app/_hooks/useDistributionPrompt';
 import { useSoundHandler } from '@/app/_hooks/useSoundHandler';
 import { IStatsNotification } from '@/app/_components/_sharedcomponents/Preferences/Preferences.types';
