@@ -24,6 +24,7 @@ import { useGameMessages, IMessageDelta, IMessageRetransmit } from '@/app/_hooks
 import { IChatEntry } from '@/app/_components/_sharedcomponents/Chat/ChatTypes';
 import { IOngoingEffectSummary } from '@/app/_components/_sharedcomponents/Cards/CardTypes';
 import { goToExit } from '@/app/_utils/siteUrls';
+import { isPlaySessionLive, readPlaySession } from '@/app/_utils/playSession';
 
 interface IGameContextType {
     gameState: any;
@@ -75,6 +76,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const { distributionPromptData, setDistributionPrompt, clearDistributionPrompt, initDistributionPrompt } = useDistributionPrompt();
     const { data: session, status } = useSession();
     const { messages: gameMessages, processMessageDeltas, processMessageRetransmit, resetMessages } = useGameMessages();
+    // The play session a redeemed ticket left in this tab (PlayEntry). With one, the socket
+    // authenticates with it and the player is the session's user; the anonymous id User.context
+    // mints plays no part, so it doesn't re-create the socket either.
+    const [playSession] = useState(readPlaySession);
+    const socketUser = playSession ? null : user;
+    const socketAnonymousUserId = playSession ? null : anonymousUserId;
 
     // Initialize sound handler with user preferences
     const { playSound } = useSoundHandler({
@@ -272,23 +279,45 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
+        // A game page is only reached through a play ticket, apart from development's anonymous
+        // dev launcher. A session past its deadline is a game the server has already ended.
+        if (playSession && !isPlaySessionLive(playSession)) {
+            goToExit('ended');
+            return;
+        }
+        if (!playSession && process.env.NODE_ENV !== 'development') {
+            goToExit();
+            return;
+        }
+
         const lobbyId = searchParams.get('lobbyId');
-        const connectedPlayerId = user?.id || anonymousUserId || '';
+        const connectedPlayerId = playSession ? playSession.userId : socketUser?.id || socketAnonymousUserId || '';
         if (!connectedPlayerId) return;
         setConnectedPlayer(connectedPlayerId);
         clearPopups();
         const spectatorParam = searchParams.get('spectator');
-        const isSpectatorMode = spectatorParam === 'true';
+        const isSpectatorMode = !playSession && spectatorParam === 'true';
         setIsSpectator(isSpectatorMode);
         const token = session?.jwtToken;
+        // With a play session the server builds the user from the session itself: no query.user,
+        // never auth.token.
         const newSocket = io(`${process.env.NEXT_PUBLIC_ROOT_URL}`, {
             path: '/ws',
             query: {
-                user: JSON.stringify(user ? user : { username: 'anonymous '+anonymousUserId?.substring(0,6), id: anonymousUserId }),
+                ...(playSession ? {} : {
+                    user: JSON.stringify(socketUser ? socketUser : { username: 'anonymous '+socketAnonymousUserId?.substring(0,6), id: socketAnonymousUserId }),
+                }),
                 lobby: JSON.stringify({ lobbyId:lobbyId ? lobbyId : null }),
                 spectator: isSpectatorMode ? 'true' : 'false'
             },
-            auth: token ? { token } : undefined,
+            auth: playSession ? { playSession: playSession.session } : token ? { token } : undefined,
+        });
+
+        // The bot server refuses a session it no longer has (restarted, lobby closed, deadline).
+        newSocket.on('connect_error', (error: Error) => {
+            if (error.message === 'session-invalid' || error.message === 'session-ended') {
+                goToExit('ended');
+            }
         });
 
         newSocket.on('connection_error', (error: any) => {
@@ -396,7 +425,19 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             newSocket?.disconnect();
         };
-    }, [user, anonymousUserId, openPopup, clearPopups, prunePromptStatePopups, status, session?.jwtToken]);
+    }, [socketUser, socketAnonymousUserId, openPopup, clearPopups, prunePromptStatePopups, status, session?.jwtToken]);
+
+    // Back to a game page restored from the back/forward cache after leaving it: the exit cleared
+    // the session, so don't let the restored socket reattach to the old game.
+    useEffect(() => {
+        const onPageShow = (event: PageTransitionEvent) => {
+            if (event.persisted && playSession && !readPlaySession()) {
+                goToExit();
+            }
+        };
+        window.addEventListener('pageshow', onPageShow);
+        return () => window.removeEventListener('pageshow', onPageShow);
+    }, [playSession]);
 
     const sendMessage = (message: string, args: any[] = []) => {
         socket?.emit(message, ...args);
