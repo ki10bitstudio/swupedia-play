@@ -167,8 +167,10 @@ There is no sign-in. A member is identified by the **play ticket** swupedia.com 
 the entry route redeems with the bot server (`POST {NEXT_PUBLIC_ROOT_URL}/api/play/redeem`, body
 `{ ticket }`, `credentials: 'omit'`, 15 s timeout) for a **play session**: `{ session, userId,
 username, deadline }`. Error codes map to `LaunchFlag`s (`expired`, `used`, `in-progress`, `busy`,
-`deck`, `bot-deck`; everything else, a network error and the timeout are `failed`). Nothing sent to
-the bot server carries credentials (`ServerApiService` uses `credentials: 'omit'` too).
+`deck`, `bot-deck`; everything else, a network error and the timeout are `failed`). Redeem and
+`ServerApiService` send no credentials (`credentials: 'omit'`). The remaining `'include'` fetches
+(get-user and preferences in `ServerAndLocalStorageUtils.ts`, the dev launcher) only run for a
+signed-in user, which this site never has, or in development.
 
 The session lives in `sessionStorage` under `swupedia.play.session` (`_utils/playSession.ts`): a
 refresh in the same tab returns to the game, other tabs and later visits don't get it, and every exit
