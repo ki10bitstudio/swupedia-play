@@ -32,7 +32,8 @@ Two standing rules:
 npm run dev          # dev server on :3000 (pass -- -p <port> for another)
 npm run lint         # tsc --noemit && next lint   <- what CI runs; run this before finishing
 npm run lint:fix     # same, with --fix
-npm run build        # next build (does NOT lint: eslint.ignoreDuringBuilds is true in next.config.mjs)
+npm run build        # next build (does NOT lint: eslint.ignoreDuringBuilds is true in next.config.mjs);
+                     # refuses to run without NEXT_PUBLIC_ROOT_URL (the bot server, inlined at build time)
 npm run storybook    # component workbench on :6006
 bash scripts/check-no-karabast.sh   # CI check, see above
 ```
@@ -68,8 +69,8 @@ with a 307 to `exitUrl()`, so there is no dead-end or default 404 page (`not-fou
 - `/` is the entry route and passes the middleware in every environment: the play ticket arrives in
   the URL fragment (`/#ticket=<JWS>`), which never reaches the server. In production it renders
   `_components/PlayEntry/PlayEntry.tsx` outside `ClientProviders`, so the server sends the launching
-  state (`LaunchingState.tsx` + `_theme/launching.css`: the swupedia mark and swupedia.com's busy Launch
-  button, plain CSS, no MUI). Once per page load (a module flag, against Strict Mode's double effect)
+  state (`LaunchingState.tsx` + `_theme/launching.css`: swupedia.com's header band with the mark, and
+  its busy Launch button centred on the viewport, plain CSS, no MUI). Once per page load (a module flag, against Strict Mode's double effect)
   PlayEntry reads the ticket, `history.replaceState`s to `/` before any request, redeems it
   (`_utils/redeemTicket.ts`), stores the session and `router.replace`s to `/lobby`; a failure
   `location.replace`s to `exitUrl(flag)`. With no ticket it reopens `/lobby` for a live stored session,
@@ -113,8 +114,10 @@ Everything on a game page reads `useGame()`.
 
 With a stored play session (see Auth) the socket connects with `auth: { playSession }`, no
 `query.user` and never `auth.token`, and the connected player is the session's `userId`. A
-`connect_error` of `session-invalid` or `session-ended`, or a stored session past its deadline, exits
-with `ended`. In production a game page without a session exits to swupedia.com/play; in development
+`connect_error` of `session-invalid` or `session-ended`, a `connection_error` (the lobby was
+removed), `inactiveDisconnect`, or a stored session past its deadline, exits with `ended`; no lobby or
+game state within 20 s (the server down while socket.io retries) exits with `failed`. The session
+path never answers `requestScreenResolution`, which the bot server's allowlist refuses. In production a game page without a session exits to swupedia.com/play; in development
 it stays anonymous (`user`/`anonymousUserId` in `query.user`) so the dev launcher works.
 
 Three outbound channels:
@@ -164,7 +167,8 @@ There is no sign-in. A member is identified by the **play ticket** swupedia.com 
 the entry route redeems with the bot server (`POST {NEXT_PUBLIC_ROOT_URL}/api/play/redeem`, body
 `{ ticket }`, `credentials: 'omit'`, 15 s timeout) for a **play session**: `{ session, userId,
 username, deadline }`. Error codes map to `LaunchFlag`s (`expired`, `used`, `in-progress`, `busy`,
-`deck`, `bot-deck`; everything else, a network error and the timeout are `failed`).
+`deck`, `bot-deck`; everything else, a network error and the timeout are `failed`). Nothing sent to
+the bot server carries credentials (`ServerApiService` uses `credentials: 'omit'` too).
 
 The session lives in `sessionStorage` under `swupedia.play.session` (`_utils/playSession.ts`): a
 refresh in the same tab returns to the game, other tabs and later visits don't get it, and every exit
