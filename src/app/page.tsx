@@ -2,9 +2,10 @@ import type { ComponentType } from 'react';
 import type { Metadata } from 'next';
 import PlayEntry from '@/app/_components/PlayEntry/PlayEntry';
 
-// The tab keeps the title swupedia.com's console had when Launch was pressed.
+// The tab keeps the title swupedia.com's console had when Launch was pressed. Absolute because the
+// root layout's template doesn't apply to a page in its own segment.
 export const metadata: Metadata = {
-    title: 'Play vs bot',
+    title: { absolute: 'Play vs bot | SWUPedia' },
 };
 
 // The entry route.
