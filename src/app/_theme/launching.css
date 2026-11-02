@@ -1,0 +1,147 @@
+/*
+ * The launching state (_components/PlayEntry/LaunchingState.tsx): the swupedia mark and swupedia.com's
+ * busy Launch button, so the "Launching…" a member pressed on swupedia.com/play carries across the
+ * page load. Plain CSS rather than MUI's sx because the entry route renders it on the server,
+ * outside ClientProviders, before any client JS.
+ *
+ * Copied from swupedia-ui, not shared (Next 16 + Tailwind there): the header's container and
+ * wordmark position (components/navigation/Header.tsx), the layout's main column
+ * (app/layout.tsx) and the console's launch bar (components/play/PlayLaunchBar.tsx: a size-lg
+ * default Button, disabled while busy, with a Spinner). Colours and radius from DESIGN.md's front
+ * matter. 640px is Tailwind's `sm`.
+ */
+.swu-launching {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--swupedia-ground);
+    color: var(--swupedia-foreground);
+    font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+/*
+ * swupedia.com's fixed header band (Header.tsx: `border-b border-room-hairline bg-room-surface/70
+ * backdrop-blur-md`, full-bleed), so the top edge doesn't change on the handoff. The room tokens are
+ * globals.css's --room-surface and --room-hairline, the original navy the header and footer keep.
+ */
+.swu-launching__header {
+    box-sizing: border-box;
+    width: 100%;
+    flex-shrink: 0;
+    border-bottom: 1px solid #10293e;
+    background-color: rgb(4 18 31 / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Inside the band, where the header shows its wordmark: 64px high in the max-w-7xl container. */
+.swu-launching__masthead {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 80rem;
+    height: 64px;
+    margin: 0 auto;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* The wordmark's SWU is 20px there; the mark's viewBox sets it at 30. */
+.swu-launching__mark {
+    display: block;
+    height: calc(46px * 2 / 3);
+    width: auto;
+}
+
+/*
+ * The main column, with the bar centred on the viewport (the bottom padding offsets the header band,
+ * 64px plus its 1px border).
+ */
+.swu-launching__main {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0 16px 65px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.swu-launching__bar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* The busy Launch button: Foreground fill, Surface text, 36px high, radius lg, at half opacity. */
+.swu-launching__button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background-color: #e8f2fa;
+    color: #141210;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0.5;
+    user-select: none;
+}
+
+.swu-launching__spinner {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    animation: swu-launching-spin 1s linear infinite;
+}
+
+.swu-launching__status {
+    min-height: 20px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: #8aa2b8;
+}
+
+@keyframes swu-launching-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (min-width: 640px) {
+    .swu-launching__masthead {
+        padding: 0 24px;
+    }
+
+    .swu-launching__main {
+        padding: 0 32px 65px;
+    }
+
+    .swu-launching__bar {
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .swu-launching__button {
+        width: auto;
+        min-width: 160px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .swu-launching__masthead {
+        padding: 0 32px;
+    }
+}

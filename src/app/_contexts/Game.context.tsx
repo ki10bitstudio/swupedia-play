@@ -16,7 +16,7 @@ import { usePopup } from './Popup.context';
 import { PopupButton, PopupSource } from '@/app/_components/_sharedcomponents/Popup/Popup.types';
 import { ZoneName } from '../_constants/constants';
 import type { IQueueMatchmakingStatus } from '../_constants/constants';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/app/_utils/session';
 import { useDistributionPrompt, IDistributionPromptData } from '@/app/_hooks/useDistributionPrompt';
 import { useSoundHandler } from '@/app/_hooks/useSoundHandler';
 import { IStatsNotification } from '@/app/_components/_sharedcomponents/Preferences/Preferences.types';
@@ -25,6 +25,7 @@ import { useGameMessages, IMessageDelta, IMessageRetransmit } from '@/app/_hooks
 import { IChatEntry } from '@/app/_components/_sharedcomponents/Chat/ChatTypes';
 import { IOngoingEffectSummary } from '@/app/_components/_sharedcomponents/Cards/CardTypes';
 import { goToExit } from '@/app/_utils/siteUrls';
+import { isPlaySessionLive, readPlaySession } from '@/app/_utils/playSession';
 
 interface IGameContextType {
     gameState: any;
@@ -59,6 +60,12 @@ interface IGameContextType {
 
 const GameContext = createContext<IGameContextType | undefined>(undefined);
 
+// How long a play-session socket may go without any lobby or game state before giving up.
+const LOBBY_WAIT_MS = 20_000;
+// How long a play-session socket may stay disconnected before giving up: past the bot server's
+// 20 s reconnect grace, after which the lobby is gone anyway.
+const RECONNECT_GIVE_UP_MS = 60_000;
+
 export const GameProvider = ({ children }: { children: ReactNode }) => {
     const [gameState, setGameState] = useState<any>(null);
     const lastGameIdRef = useRef<string | null>(null);
@@ -78,6 +85,31 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const { distributionPromptData, setDistributionPrompt, clearDistributionPrompt, initDistributionPrompt } = useDistributionPrompt();
     const { data: session, status } = useSession();
     const { messages: gameMessages, processMessageDeltas, processMessageRetransmit, resetMessages } = useGameMessages();
+    // The play session a redeemed ticket left in this tab (PlayEntry). With one, the socket
+    // authenticates with it and the player is the session's user; the anonymous id User.context
+    // mints plays no part, so it doesn't re-create the socket either.
+    const [playSession] = useState(readPlaySession);
+    const socketUser = playSession ? null : user;
+    const socketAnonymousUserId = playSession ? null : anonymousUserId;
+    // A play-session socket that gets no lobby state in time (the bot server down and socket.io
+    // retrying) gives up instead of leaving the launching state up forever.
+    const lobbyWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Once connected, a play-session socket that stays disconnected (the bot server gone while
+    // socket.io retries) gives up too. Started by a disconnect, cancelled by a reconnection.
+    const giveUpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearExitTimers = () => {
+        if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
+        lobbyWaitTimer.current = null;
+        if (giveUpTimer.current) clearTimeout(giveUpTimer.current);
+        giveUpTimer.current = null;
+    };
+
+    // Any exit from a play session leaves no timer behind.
+    const exitSession = (flag: Parameters<typeof goToExit>[0]) => {
+        clearExitTimers();
+        goToExit(flag);
+    };
 
     // Initialize sound handler with user preferences
     const { playSound } = useSoundHandler({
@@ -293,29 +325,74 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
+        // A game page is only reached through a play ticket, apart from development's anonymous
+        // dev launcher. A session past its deadline is a game the server has already ended.
+        if (playSession && !isPlaySessionLive(playSession)) {
+            goToExit('ended');
+            return;
+        }
+        if (!playSession && process.env.NODE_ENV !== 'development') {
+            goToExit();
+            return;
+        }
+
         const lobbyId = searchParams.get('lobbyId');
-        const connectedPlayerId = user?.id || anonymousUserId || '';
+        const connectedPlayerId = playSession ? playSession.userId : socketUser?.id || socketAnonymousUserId || '';
         if (!connectedPlayerId) return;
         setConnectedPlayer(connectedPlayerId);
         setQueueMatchmakingStatus(null);
         clearPopups();
         const spectatorParam = searchParams.get('spectator');
-        const isSpectatorMode = spectatorParam === 'true';
+        const isSpectatorMode = !playSession && spectatorParam === 'true';
         setIsSpectator(isSpectatorMode);
         const token = session?.jwtToken;
+        // With a play session the server builds the user from the session itself: no query.user,
+        // never auth.token.
         const newSocket = io(`${process.env.NEXT_PUBLIC_ROOT_URL}`, {
             path: '/ws',
             query: {
-                user: JSON.stringify(user ? user : { username: 'anonymous '+anonymousUserId?.substring(0,6), id: anonymousUserId }),
+                ...(playSession ? {} : {
+                    user: JSON.stringify(socketUser ? socketUser : { username: 'anonymous '+socketAnonymousUserId?.substring(0,6), id: socketAnonymousUserId }),
+                }),
                 lobby: JSON.stringify({ lobbyId:lobbyId ? lobbyId : null }),
                 spectator: isSpectatorMode ? 'true' : 'false'
             },
-            auth: token ? { token } : undefined,
+            auth: playSession ? { playSession: playSession.session } : token ? { token } : undefined,
         });
+
+        // The bot server refuses a session it no longer has (restarted, lobby closed, deadline).
+        newSocket.on('connect_error', (error: Error) => {
+            if (error.message === 'session-invalid' || error.message === 'session-ended') {
+                exitSession('ended');
+            }
+        });
+
+        clearExitTimers();
+        lobbyWaitTimer.current = playSession ? setTimeout(() => exitSession('failed'), LOBBY_WAIT_MS) : null;
+
+        if (playSession) {
+            // Any disconnect but our own disconnect() starts the give-up clock; a reconnection
+            // (socket.io's connect event) cancels it, so short drops that recover never exit.
+            newSocket.on('disconnect', (reason: string) => {
+                if (reason === 'io client disconnect') return;
+                if (giveUpTimer.current) clearTimeout(giveUpTimer.current);
+                giveUpTimer.current = setTimeout(() => exitSession('ended'), RECONNECT_GIVE_UP_MS);
+            });
+            newSocket.on('connect', () => {
+                if (giveUpTimer.current) clearTimeout(giveUpTimer.current);
+                giveUpTimer.current = null;
+            });
+        }
 
         newSocket.on('connection_error', (error: any) => {
             setQueueMatchmakingStatus(null);
             console.error('Error joining lobby:', error);
+            // With a play session the lobby is gone (the server removed it, or it timed out): back
+            // to the console with its sentence, no raw code in a blocking alert.
+            if (playSession) {
+                exitSession('ended');
+                return;
+            }
             alert(error);
             goToExit();
         });
@@ -326,6 +403,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         });
 
         newSocket.on('inactiveDisconnect', () => {            
+            if (playSession) {
+                exitSession('ended');
+                return;
+            }
             alert('You have been disconnected due to inactivity');
             newSocket.disconnect();
         });
@@ -335,6 +416,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         });
 
         newSocket.on('gamestate', (gameState: any) => {
+            if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
             setQueueMatchmakingStatus(null);
             if(isSpectatorMode){
                 setConnectedPlayer(Object.keys(gameState.players)[0])
@@ -378,6 +460,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         });
 
         newSocket.on('lobbystate', (lobbyState: any) => {
+            if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
             setQueueMatchmakingStatus(null);
             setLobbyState(lobbyState);
             if (process.env.NODE_ENV === 'development') {
@@ -404,6 +487,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         // Server requests the player's screen resolution at game start for analytics logging.
         newSocket.on('requestScreenResolution', () => {
+            // The bot server doesn't collect it and would refuse the packet.
+            if (playSession) return;
             if (typeof window === 'undefined' || !window.screen) return;
             newSocket.emit('lobby', 'reportScreenResolution', {
                 width: window.screen.width,
@@ -425,8 +510,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         return () => {
             newSocket?.disconnect();
+            clearExitTimers();
         };
-    }, [user, anonymousUserId, openPopup, clearPopups, prunePromptStatePopups, status, session?.jwtToken]);
+    }, [socketUser, socketAnonymousUserId, openPopup, clearPopups, prunePromptStatePopups, status, session?.jwtToken]);
+
+    // Back to a game page restored from the back/forward cache after leaving it: the exit cleared
+    // the session, so don't let the restored socket reattach to the old game.
+    useEffect(() => {
+        const onPageShow = (event: PageTransitionEvent) => {
+            if (event.persisted && playSession && !readPlaySession()) {
+                goToExit();
+            }
+        };
+        window.addEventListener('pageshow', onPageShow);
+        return () => window.removeEventListener('pageshow', onPageShow);
+    }, [playSession]);
 
     const sendMessage = (message: string, args: any[] = []) => {
         if (message === 'manualDisconnect' || message === 'requeue') {

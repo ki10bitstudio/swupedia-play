@@ -6,6 +6,10 @@ import { fontVariables } from './_theme/fonts';
 import './_theme/firstPaint.css';
 import './_utils/s3Utils';
 
+// Every page renders per request, so Next can put the request's CSP nonce (src/middleware.ts) on
+// its script tags; a page prerendered at build time would carry none and its scripts would be blocked.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
     title: { template: '%s | SWUPedia', default: 'SWUPedia' },
     description: 'Play Star Wars: Unlimited against the SWUPedia bot.',

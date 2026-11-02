@@ -17,7 +17,9 @@ export class ServerApiService {
         try {
             const response = await fetch(url, {
                 ...options,
-                credentials: 'include', // Include cookies in cross-origin requests
+                // The bot server authenticates nothing by cookie, and play.swupedia.com and its host
+                // are the same site, so a site-wide cookie must never ride along.
+                credentials: 'omit',
                 headers: {
                     'Content-Type': 'application/json',
                     ...options?.headers,
