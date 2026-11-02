@@ -13,8 +13,9 @@ import io, { Socket } from 'socket.io-client';
 import { useUser } from './User.context';
 import { useSearchParams } from 'next/navigation';
 import { usePopup } from './Popup.context';
-import { PopupSource } from '@/app/_components/_sharedcomponents/Popup/Popup.types';
+import { PopupButton, PopupSource } from '@/app/_components/_sharedcomponents/Popup/Popup.types';
 import { ZoneName } from '../_constants/constants';
+import type { IQueueMatchmakingStatus } from '../_constants/constants';
 import { useSession } from '@/app/_utils/session';
 import { useDistributionPrompt, IDistributionPromptData } from '@/app/_hooks/useDistributionPrompt';
 import { useSoundHandler } from '@/app/_hooks/useSoundHandler';
@@ -44,6 +45,7 @@ interface IGameContextType {
     distributionPromptData: IDistributionPromptData | null;
     isSpectator: boolean;
     lastQueueHeartbeat: number;
+    queueMatchmakingStatus: IQueueMatchmakingStatus | null;
     isAnonymousPlayer: (player: string) => boolean;
     hasChatDisabled: (player: string) => boolean;
     createNewSocket: () => Socket | undefined;
@@ -60,6 +62,9 @@ const GameContext = createContext<IGameContextType | undefined>(undefined);
 
 // How long a play-session socket may go without any lobby or game state before giving up.
 const LOBBY_WAIT_MS = 20_000;
+// How long a play-session socket may stay disconnected before giving up: past the bot server's
+// 20 s reconnect grace, after which the lobby is gone anyway.
+const RECONNECT_GIVE_UP_MS = 60_000;
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
     const [gameState, setGameState] = useState<any>(null);
@@ -70,6 +75,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const [statsSubmitNotification, setStatsSubmitNotification] = useState<IStatsNotification | null>(null);
     const [socket, setSocket] = useState<Socket | undefined>(undefined);
     const [lastQueueHeartbeat, setLastQueueHeartbeat] = useState(Date.now());
+    const [queueMatchmakingStatus, setQueueMatchmakingStatus] = useState<IQueueMatchmakingStatus | null>(null);
     const [connectedPlayer, setConnectedPlayer] = useState<string>('');
     const [hoveredChatCardId, setHoveredCardId] = useState<string | null>(null);
     const { openPopup, clearPopups, prunePromptStatePopups } = usePopup();
@@ -88,6 +94,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     // A play-session socket that gets no lobby state in time (the bot server down and socket.io
     // retrying) gives up instead of leaving the launching state up forever.
     const lobbyWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Once connected, a play-session socket that stays disconnected (the bot server gone while
+    // socket.io retries) gives up too. Started by a disconnect, cancelled by a reconnection.
+    const giveUpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearExitTimers = () => {
+        if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
+        lobbyWaitTimer.current = null;
+        if (giveUpTimer.current) clearTimeout(giveUpTimer.current);
+        giveUpTimer.current = null;
+    };
+
+    // Any exit from a play session leaves no timer behind.
+    const exitSession = (flag: Parameters<typeof goToExit>[0]) => {
+        clearExitTimers();
+        goToExit(flag);
+    };
 
     // Initialize sound handler with user preferences
     const { playSound } = useSoundHandler({
@@ -136,7 +158,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                 playSound('yourTurn');
             }
 
-            const { buttons, menuTitle,promptTitle, promptUuid, selectCardMode, promptType, dropdownListOptions, perCardButtons, displayCards, selectNumber } = promptState;
+            const { buttons, menuTitle, promptTitle, promptDescription, promptUuid, selectCardMode, promptType, dropdownListOptions, perCardButtons, displayCards, selectNumber } = promptState;
 
             prunePromptStatePopups(promptUuid);
             if (promptType === 'actionWindow') {
@@ -146,6 +168,24 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             else if (promptType === 'distributeAmongTargets') {
                 initDistributionPrompt(promptState.distributeAmongTargets);
                 return;
+            }
+            else if (promptType === 'actionSelection' && menuTitle && promptUuid && !selectCardMode) {
+                return openPopup('actionTrigger', {
+                    uuid: promptUuid,
+                    title: menuTitle,
+                    buttons: buttons.filter((button: PopupButton) => button.sourceCard),
+                    footerButtons: buttons.filter((button: PopupButton) => !button.sourceCard),
+                    source: PopupSource.PromptState
+                });
+            }
+            else if (promptType === 'modalEffectSelection' && menuTitle && promptUuid && !selectCardMode) {
+                return openPopup('actionTrigger', {
+                    uuid: promptUuid,
+                    title: menuTitle,
+                    description: promptDescription,
+                    buttons,
+                    source: PopupSource.PromptState
+                });
             }
             else if (hasSelectedCards(gameState, ['groundArena','spaceArena']) && buttons.length == 2) {
                 return;
@@ -300,6 +340,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         const connectedPlayerId = playSession ? playSession.userId : socketUser?.id || socketAnonymousUserId || '';
         if (!connectedPlayerId) return;
         setConnectedPlayer(connectedPlayerId);
+        setQueueMatchmakingStatus(null);
         clearPopups();
         const spectatorParam = searchParams.get('spectator');
         const isSpectatorMode = !playSession && spectatorParam === 'true';
@@ -322,19 +363,34 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         // The bot server refuses a session it no longer has (restarted, lobby closed, deadline).
         newSocket.on('connect_error', (error: Error) => {
             if (error.message === 'session-invalid' || error.message === 'session-ended') {
-                goToExit('ended');
+                exitSession('ended');
             }
         });
 
-        if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
-        lobbyWaitTimer.current = playSession ? setTimeout(() => goToExit('failed'), LOBBY_WAIT_MS) : null;
+        clearExitTimers();
+        lobbyWaitTimer.current = playSession ? setTimeout(() => exitSession('failed'), LOBBY_WAIT_MS) : null;
+
+        if (playSession) {
+            // Any disconnect but our own disconnect() starts the give-up clock; a reconnection
+            // (socket.io's connect event) cancels it, so short drops that recover never exit.
+            newSocket.on('disconnect', (reason: string) => {
+                if (reason === 'io client disconnect') return;
+                if (giveUpTimer.current) clearTimeout(giveUpTimer.current);
+                giveUpTimer.current = setTimeout(() => exitSession('ended'), RECONNECT_GIVE_UP_MS);
+            });
+            newSocket.on('connect', () => {
+                if (giveUpTimer.current) clearTimeout(giveUpTimer.current);
+                giveUpTimer.current = null;
+            });
+        }
 
         newSocket.on('connection_error', (error: any) => {
+            setQueueMatchmakingStatus(null);
             console.error('Error joining lobby:', error);
             // With a play session the lobby is gone (the server removed it, or it timed out): back
             // to the console with its sentence, no raw code in a blocking alert.
             if (playSession) {
-                goToExit('ended');
+                exitSession('ended');
                 return;
             }
             alert(error);
@@ -348,15 +404,20 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         newSocket.on('inactiveDisconnect', () => {            
             if (playSession) {
-                goToExit('ended');
+                exitSession('ended');
                 return;
             }
             alert('You have been disconnected due to inactivity');
             newSocket.disconnect();
         });
 
+        newSocket.on('disconnect', () => {
+            setQueueMatchmakingStatus(null);
+        });
+
         newSocket.on('gamestate', (gameState: any) => {
             if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
+            setQueueMatchmakingStatus(null);
             if(isSpectatorMode){
                 setConnectedPlayer(Object.keys(gameState.players)[0])
             }
@@ -400,14 +461,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         newSocket.on('lobbystate', (lobbyState: any) => {
             if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
+            setQueueMatchmakingStatus(null);
             setLobbyState(lobbyState);
             if (process.env.NODE_ENV === 'development') {
                 console.log('Lobby state received:', lobbyState);
             }
         })
         
-        newSocket.on('queueHeartbeat', () => {
+        newSocket.on('queueHeartbeat', (_serverTime: number, matchmakingStatus?: IQueueMatchmakingStatus) => {
             setLastQueueHeartbeat(Date.now());
+            setQueueMatchmakingStatus(matchmakingStatus ?? null);
         });
 
         newSocket.on('bugReportResult', (result: any) => {
@@ -447,7 +510,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         return () => {
             newSocket?.disconnect();
-            if (lobbyWaitTimer.current) clearTimeout(lobbyWaitTimer.current);
+            clearExitTimers();
         };
     }, [socketUser, socketAnonymousUserId, openPopup, clearPopups, prunePromptStatePopups, status, session?.jwtToken]);
 
@@ -464,6 +527,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }, [playSession]);
 
     const sendMessage = (message: string, args: any[] = []) => {
+        if (message === 'manualDisconnect' || message === 'requeue') {
+            setQueueMatchmakingStatus(null);
+        }
         socket?.emit(message, ...args);
     };
 
@@ -516,6 +582,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const resetStates = () => {
         setLobbyState(null);
         setGameState(null);
+        setQueueMatchmakingStatus(null);
         resetMessages();
     }
 
@@ -551,6 +618,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                 distributionPromptData,
                 isSpectator,
                 lastQueueHeartbeat,
+                queueMatchmakingStatus,
                 isAnonymousPlayer,
                 hasChatDisabled,
                 createNewSocket,

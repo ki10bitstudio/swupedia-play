@@ -116,7 +116,9 @@ With a stored play session (see Auth) the socket connects with `auth: { playSess
 `query.user` and never `auth.token`, and the connected player is the session's `userId`. A
 `connect_error` of `session-invalid` or `session-ended`, a `connection_error` (the lobby was
 removed), `inactiveDisconnect`, or a stored session past its deadline, exits with `ended`; no lobby or
-game state within 20 s (the server down while socket.io retries) exits with `failed`. The session
+game state within 20 s (the server down while socket.io retries) exits with `failed`. Once connected, a
+disconnect other than our own `disconnect()` starts a 60 s give-up timer (`RECONNECT_GIVE_UP_MS`) that exits with
+`ended`; a reconnection (`connect`) cancels it, and any exit or a socket replacement clears it. The session
 path never answers `requestScreenResolution`, which the bot server's allowlist refuses. In production a game page without a session exits to swupedia.com/play; in development
 it stays anonymous (`user`/`anonymousUserId` in `query.user`) so the dev launcher works.
 
